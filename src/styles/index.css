@@ -1,0 +1,83 @@
+/* === Normalize/Reset CSS === */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  /* === Global Styles === */
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f8fc; /* Light blue background */
+    color: #333; /* Dark gray text */
+    line-height: 1.6;
+    margin: 0;
+  }
+  
+  h1 {
+    color: #2c3e50; /* Deep blue for headings */
+    text-align: center;
+    margin: 1em 0;
+  }
+  
+  /* === Table Styling === */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    background-color: #fff; /* White table background */
+    border: 1px solid #ddd; /* Light gray border */
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  th {
+    background-color: #2980b9; /* Vibrant blue */
+    color: white;
+    font-weight: bold;
+  }
+  
+  tr:hover {
+    background-color: #f1f1f1; /* Light gray on hover */
+  }
+  
+  /* === Input Styling === */
+  input {
+    width: 90%;
+    padding: 8px;
+    margin: 4px 0;
+    border: 1px solid #ccc; /* Neutral border */
+    border-radius: 4px;
+  }
+  
+  input:focus {
+    outline: none;
+    border-color: #2980b9; /* Blue focus highlight */
+  }
+  
+  /* === Button Styling === */
+  button {
+    background-color: #2980b9; /* Vibrant blue */
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  button:hover {
+    background-color: #1a5a7f; /* Darker blue on hover */
+  }
+  
+  button:disabled {
+    background-color: #ccc; /* Gray for disabled buttons */
+    cursor: not-allowed;
+  }
+  
