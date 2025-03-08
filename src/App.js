@@ -7,7 +7,7 @@ import './styles/App.css';
 
 const App = () => {
   return (
-    <Router>
+    <Router basename="/MoneyMap">
       <Routes>
         {/* Define routes for different pages */}
         <Route
