@@ -11,6 +11,16 @@ const BudgetTable = () => {
   const { budgetData } = useBudget(); // Access budgetData from context
   const [rows, setRows] = useState([]);
 
+  // Calculate totals for the table
+  const totals = rows.reduce(
+    (acc, row) => ({
+      budgeted: acc.budgeted + row.expected,
+      actual: acc.actual + (row.actual || 0),
+      difference: acc.difference + row.difference,
+    }),
+    { budgeted: 0, actual: 0, difference: 0 }
+  );
+
   // Load saved data from localStorage on component mount
   useEffect(() => {
     const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
@@ -92,16 +102,33 @@ const BudgetTable = () => {
     setRows(updatedRows);
   };
 
-  // Export to Excel
-  const exportToExcel = () => {
+  // Export to CSV
+  const exportToCSV = () => {
     if (rows.length === 0) {
       alert('No data available to export.');
       return;
     }
-    const worksheet = XLSX.utils.json_to_sheet(rows);
+
+    // Include the totals row in the export
+    const data = [
+      ...rows.map((row) => ({
+        Label: row.label,
+        Budgeted: `$${row.expected.toFixed(2)}`,
+        Actual: `$${row.actual || '0.00'}`,
+        Difference: `$${row.difference.toFixed(2)}`,
+      })),
+      {
+        Label: 'Totals',
+        Budgeted: `$${totals.budgeted.toFixed(2)}`,
+        Actual: `$${totals.actual.toFixed(2)}`,
+        Difference: `$${totals.difference.toFixed(2)}`,
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Budget');
-    XLSX.writeFile(workbook, `Budget_${date}.xlsx`);
+    XLSX.writeFile(workbook, `Budget_${date}.csv`);
   };
 
   // Export to PDF
@@ -152,9 +179,17 @@ const BudgetTable = () => {
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr className="totals-row">
+            <td><strong>Totals</strong></td>
+            <td><strong>${totals.budgeted.toFixed(2)}</strong></td>
+            <td><strong>${totals.actual.toFixed(2)}</strong></td>
+            <td><strong>${totals.difference.toFixed(2)}</strong></td>
+          </tr>
+        </tfoot>
       </table>
       <div className="export-buttons">
-        <button onClick={exportToExcel}>Export to Excel</button>
+        <button onClick={exportToCSV}>Export to CSV</button>
         <button onClick={exportToPDF}>Export to PDF</button>
       </div>
     </div>

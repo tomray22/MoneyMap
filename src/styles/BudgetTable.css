@@ -76,3 +76,13 @@
   font-weight: bold;
   margin-top: 1em;
 }
+
+/* Totals Row Styles */
+.totals-row {
+  background-color: #e0f7fa; /* Light blue background */
+  font-weight: bold;
+}
+
+.totals-row td {
+  border-top: 2px solid #0097a7; /* Darker blue border at the top */
+}
