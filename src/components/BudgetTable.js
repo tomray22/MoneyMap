@@ -1,36 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useBudget } from '../BudgetContext'; // Import useBudget
 import '../styles/BudgetTable.css';
 
 const BudgetTable = () => {
-  const location = useLocation();
-  const { date, data } = location.state || {};
+  const { date } = useParams(); // Get date from URL params
+  const { budgetData } = useBudget(); // Access budgetData from context
   const [rows, setRows] = useState([]);
 
   // Load saved data from localStorage on component mount
   useEffect(() => {
     const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
-    console.log('Loaded savedData:', savedData); // Debugging log
-
     if (savedData[date]) {
-      console.log('Data for this date:', savedData[date]); // Debugging log
+      // Use saved data for the selected date
       setRows(savedData[date]);
-    } else if (data) {
-      // If no saved data exists, use the initial data
-      console.log('Using initial data:', data); // Debugging log
-      setRows(data);
+    } else if (budgetData?.categories) {
+      // If no saved data exists, calculate the daily budget allocation
+      const daysInBudget = Math.ceil((new Date(budgetData.endDate) - new Date(budgetData.startDate)) / (1000 * 60 * 60 * 24));
+      const initialRows = budgetData.categories
+        .filter((category) => {
+          if (category.schedule) {
+            const { type, days, date: scheduledDate } = category.schedule;
+            if (type === 'recurring') {
+              const dayOfWeek = new Date(date).toLocaleString('en-US', { weekday: 'long' });
+              return days.includes(dayOfWeek);
+            } else if (type === 'one-time') {
+              return new Date(scheduledDate).toDateString() === date;
+            }
+          }
+          return true; // Include all categories without a schedule
+        })
+        .map((category) => {
+          // Calculate the expected amount for the day
+          let expected = 0;
+          if (category.schedule) {
+            // For scheduled payments, use the full expected amount
+            expected = category.expected;
+          } else {
+            // For non-scheduled payments, spread the budget evenly
+            expected = (category.expected / daysInBudget).toFixed(2);
+          }
+          return {
+            label: category.label,
+            expected: parseFloat(expected),
+            actual: 0,
+            difference: parseFloat(expected),
+          };
+        });
+      setRows(initialRows);
     }
-  }, [date, data]);
+  }, [date, budgetData]);
 
   // Save data to localStorage whenever rows change
   useEffect(() => {
     if (rows.length > 0) {
       const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
       savedData[date] = rows;
-      console.log('Saving data for this date:', savedData[date]); // Debugging log
       localStorage.setItem('dailyData', JSON.stringify(savedData));
     }
   }, [rows, date]);
@@ -38,13 +66,18 @@ const BudgetTable = () => {
   // Handle changes to the "Actual" column
   const handleActualChange = (index, value) => {
     const updatedRows = [...rows];
-    updatedRows[index].actual = value;
-    updatedRows[index].difference = updatedRows[index].expected - value;
+    const actualValue = isNaN(value) ? 0 : parseFloat(value); // Validate input
+    updatedRows[index].actual = actualValue;
+    updatedRows[index].difference = updatedRows[index].expected - actualValue;
     setRows(updatedRows);
   };
 
   // Export to Excel
   const exportToExcel = () => {
+    if (rows.length === 0) {
+      alert('No data available to export.');
+      return;
+    }
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Budget');
@@ -53,6 +86,10 @@ const BudgetTable = () => {
 
   // Export to PDF
   const exportToPDF = () => {
+    if (rows.length === 0) {
+      alert('No data available to export.');
+      return;
+    }
     const doc = new jsPDF();
     doc.text(`Budget for ${date}`, 10, 10);
     autoTable(doc, {
@@ -69,61 +106,39 @@ const BudgetTable = () => {
   return (
     <div>
       {date && <h1>Budget for {date}</h1>}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1em' }}>
+      <table className="budget-table">
         <thead>
           <tr>
-            <th style={tableHeaderStyle}>Label</th>
-            <th style={tableHeaderStyle}>Budgeted</th>
-            <th style={tableHeaderStyle}>Actual</th>
-            <th style={tableHeaderStyle}>Difference</th>
+            <th>Label</th>
+            <th>Budgeted</th>
+            <th>Actual</th>
+            <th>Difference</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row, index) => (
             <tr key={index}>
-              <td style={tableCellStyle}>{row.label}</td>
-              <td style={tableCellStyle}>${row.expected.toFixed(2)}</td>
-              <td style={tableCellStyle}>
+              <td>{row.label}</td>
+              <td>${row.expected.toFixed(2)}</td>
+              <td>
                 <input
                   type="number"
                   value={row.actual || ''}
                   onChange={(e) => handleActualChange(index, parseFloat(e.target.value))}
-                  style={inputStyle}
                   placeholder="Enter actual"
                 />
               </td>
-              <td style={tableCellStyle}>
-                ${row.difference ? row.difference.toFixed(2) : row.expected.toFixed(2)}
-              </td>
+              <td>${row.difference ? row.difference.toFixed(2) : row.expected.toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div style={{ marginTop: '1em' }}>
+      <div className="export-buttons">
         <button onClick={exportToExcel}>Export to Excel</button>
         <button onClick={exportToPDF}>Export to PDF</button>
       </div>
     </div>
   );
-};
-
-// Styles (same as before)
-const tableHeaderStyle = {
-  border: '1px solid #ddd',
-  padding: '8px',
-  textAlign: 'left',
-  backgroundColor: '#f2f2f2',
-};
-
-const tableCellStyle = {
-  border: '1px solid #ddd',
-  padding: '8px',
-};
-
-const inputStyle = {
-  width: '100%',
-  padding: '4px',
-  boxSizing: 'border-box',
 };
 
 export default BudgetTable;

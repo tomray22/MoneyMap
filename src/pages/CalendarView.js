@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Calendar from 'react-calendar';
 import DatePicker from 'react-datepicker';
 import 'react-calendar/dist/Calendar.css';
@@ -7,27 +7,90 @@ import 'react-datepicker/dist/react-datepicker.css';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { enUS } from 'date-fns/locale'; // Import the locale
+import { enUS } from 'date-fns/locale';
+import { useBudget } from '../BudgetContext';
 import '../styles/Calendar.css';
 
 const CalendarView = () => {
-  const location = useLocation();
+  const { budgetData } = useBudget();
   const navigate = useNavigate();
-  const budgetData = location.state?.budgetData;
 
-  const [selectedDate, setSelectedDate] = useState(new Date(budgetData?.startDate || new Date())); // Set initial date to start date
-  const [startDate, setStartDate] = useState(new Date(budgetData?.startDate || new Date())); // Set default to start date
-  const [endDate, setEndDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date(budgetData?.startDate || new Date()));
+  const [startDate, setStartDate] = useState(new Date(budgetData?.startDate || new Date()));
+  const [endDate, setEndDate] = useState(new Date(budgetData?.endDate || new Date()));
+
+  // Memoize daily budgets to avoid recalculating on every render
+  const dailyBudgets = useMemo(() => {
+    if (!budgetData) return {};
+
+    const { categories, startDate, endDate } = budgetData;
+    const dailyBudgets = {};
+
+    // Load saved data from localStorage
+    const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
+
+    categories.forEach((category) => {
+      if (category.schedule) {
+        // Handle scheduled payments
+        const { type, days, date } = category.schedule;
+        if (type === 'recurring') {
+          // Recurring payments (e.g., every Monday and Friday)
+          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            const dayOfWeek = d.toLocaleString('en-US', { weekday: 'long' });
+            if (days.includes(dayOfWeek)) {
+              const dateKey = d.toDateString();
+              dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
+              dailyBudgets[dateKey].categories.push({
+                label: category.label,
+                expected: category.expected,
+                actual: savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0,
+                difference: category.expected,
+              });
+              dailyBudgets[dateKey].total += category.expected;
+            }
+          }
+        } else if (type === 'one-time') {
+          // One-time payments
+          const dateKey = new Date(date).toDateString();
+          if (new Date(date) >= startDate && new Date(date) <= endDate) {
+            dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
+            dailyBudgets[dateKey].categories.push({
+              label: category.label,
+              expected: category.expected,
+              actual: savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0,
+              difference: category.expected,
+            });
+            dailyBudgets[dateKey].total += category.expected;
+          }
+        }
+      } else {
+        // Default behavior: spread the budget evenly
+        const daysInBudget = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+        const dailyAmount = (category.expected / daysInBudget).toFixed(2);
+        for (let i = 0; i < daysInBudget; i++) {
+          const date = new Date(startDate);
+          date.setDate(date.getDate() + i);
+          const dateKey = date.toDateString();
+          dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
+          dailyBudgets[dateKey].categories.push({
+            label: category.label,
+            expected: parseFloat(dailyAmount),
+            actual: savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0,
+            difference: parseFloat(dailyAmount),
+          });
+          dailyBudgets[dateKey].total += parseFloat(dailyAmount);
+        }
+      }
+    });
+
+    return dailyBudgets;
+  }, [budgetData]);
 
   // Handle date selection
   const handleDateChange = (date) => {
     setSelectedDate(date);
     const formattedDate = date.toDateString();
-
-    // Calculate daily budgets
-    const dailyBudgets = getDailyBudgets();
     const selectedDayData = dailyBudgets[formattedDate];
-
     if (selectedDayData) {
       navigate(`/day/${formattedDate}`, { state: { date: formattedDate, data: selectedDayData.categories } });
     } else {
@@ -41,53 +104,10 @@ const CalendarView = () => {
       <div className="calendar-view">
         <h1>Budget Calendar</h1>
         <p>Error: No budget data available. Please complete setup first.</p>
-        <button onClick={() => navigate('/')}>Go to Setup</button>
+        <button onClick={() => navigate('/budget')}>Go to Setup</button>
       </div>
     );
   }
-
-  // Calculate daily budget for each category
-  const getDailyBudgets = () => {
-    const { timePeriod, categories, startDate } = budgetData;
-    const daysInBudget = timePeriod || 30;
-    const dailyBudgets = {};
-  
-    // Load saved data from localStorage
-    const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
-  
-    categories.forEach((category) => {
-      const dailyAmount = (category.expected / daysInBudget).toFixed(2);
-      for (let i = 0; i < daysInBudget; i++) {
-        const date = new Date(startDate); // Use the selected start date
-        date.setDate(date.getDate() + i);
-        const dateKey = date.toDateString();
-  
-        if (!dailyBudgets[dateKey]) {
-          dailyBudgets[dateKey] = {
-            total: 0,
-            categories: [],
-          };
-        }
-  
-        // Merge saved data with budget data
-        const savedDayData = savedData[dateKey];
-        const savedCategory = savedDayData?.find((row) => row.label === category.label);
-  
-        dailyBudgets[dateKey].categories.push({
-          label: category.label,
-          expected: parseFloat(dailyAmount),
-          actual: savedCategory?.actual || 0,
-          difference: savedCategory?.difference || parseFloat(dailyAmount),
-        });
-  
-        dailyBudgets[dateKey].total += parseFloat(dailyAmount);
-      }
-    });
-  
-    return dailyBudgets;
-  };
-
-  const dailyBudgets = getDailyBudgets();
 
   // Custom tile content for the calendar
   const tileContent = ({ date, view }) => {
@@ -160,7 +180,7 @@ const CalendarView = () => {
             selectsStart
             startDate={startDate}
             endDate={endDate}
-            minDate={new Date(budgetData?.startDate)} // Ensure the start date cannot be before the budget start date
+            minDate={new Date(budgetData.startDate)} // Ensure the start date cannot be before the budget start date
           />
         </label>
         <label>
@@ -184,8 +204,10 @@ const CalendarView = () => {
         locale={enUS} // Set the locale to enUS (starts on Sunday)
         defaultView="month" // Set the default view to month
         defaultActiveStartDate={new Date(budgetData.startDate)} // Set the initial view to the start date
+        minDate={new Date(budgetData.startDate)}
+        maxDate={new Date(budgetData.endDate)}
       />
-      <button onClick={() => navigate('/')} className="back-button">
+      <button onClick={() => navigate('/budget')} className="back-button">
         Go Back to Setup
       </button>
     </div>
