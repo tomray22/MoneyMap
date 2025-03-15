@@ -1,17 +1,28 @@
-import React from 'react';
-import { HashRouter as Router, Route, Routes, Link } from 'react-router-dom'; //Switch to HashRouter for build
-import { BudgetProvider } from './BudgetContext'; // Import BudgetProvider
+import React, { useState } from 'react';
+import { HashRouter as Router, Route, Routes, Link } from 'react-router-dom';
+import { BudgetProvider } from './BudgetContext';
 import BudgetPage from './pages/BudgetPage';
 import CalendarView from './pages/CalendarView';
 import BudgetTable from './components/BudgetTable';
+import SummaryPage from './pages/SummaryPage';
+import CurrencyConverter from './components/CurrencyConverter'; // Import the new component
 import './styles/App.css';
 
 const App = () => {
+  const [currency, setCurrency] = useState('USD');
+  const [exchangeRate, setExchangeRate] = useState(1);
+
+  // Handle currency change
+  const handleCurrencyChange = (selectedCurrency, rate) => {
+    setCurrency(selectedCurrency);
+    setExchangeRate(rate);
+  };
+
   return (
-    <BudgetProvider> {/* Wrap the Router with BudgetProvider */}
+    <BudgetProvider>
       <Router>
+        <CurrencyConverter onCurrencyChange={handleCurrencyChange} />
         <Routes>
-          {/* Define routes for different pages */}
           <Route
             path="/"
             element={
@@ -35,9 +46,10 @@ const App = () => {
               </div>
             }
           />
-          <Route path="/budget" element={<BudgetPage />} />
-          <Route path="/calendar" element={<CalendarView />} />
-          <Route path="/day/:date" element={<BudgetTable />} />
+          <Route path="/budget" element={<BudgetPage currency={currency} exchangeRate={exchangeRate} />} />
+          <Route path="/calendar" element={<CalendarView currency={currency} exchangeRate={exchangeRate} />} />
+          <Route path="/day/:date" element={<BudgetTable currency={currency} exchangeRate={exchangeRate} />} />
+          <Route path="/summary" element={<SummaryPage currency={currency} exchangeRate={exchangeRate} />} />
         </Routes>
       </Router>
     </BudgetProvider>

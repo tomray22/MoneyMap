@@ -5,6 +5,23 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { useBudget } from '../BudgetContext';
 import '../styles/BudgetSetup.css';
 
+// Currency symbols for display
+const currencySymbols = {
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  JPY: '¥',
+  CNY: '¥',
+  INR: '₹',
+  AUD: 'A$',
+  CAD: 'C$',
+  CHF: 'CHF',
+  KRW: '₩',
+  PHP: '₱',
+  SGD: 'S$',
+  NZD: 'NZ$',
+};
+
 const templates = [
   {
     name: 'Travel Budget',
@@ -20,7 +37,7 @@ const templates = [
   },
 ];
 
-const BudgetPage = () => {
+const BudgetPage = ({ currency, exchangeRate }) => {
   const { budgetData, setBudgetData } = useBudget();
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -33,14 +50,14 @@ const BudgetPage = () => {
   const [endDate, setEndDate] = useState(null);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [newCategory, setNewCategory] = useState('');
-  const [categorySettings, setCategorySettings] = useState({}); // Stores per-category settings
-  const [remainingBudget, setRemainingBudget] = useState(0); // Track remaining budget
+  const [categorySettings, setCategorySettings] = useState({});
+  const [remainingBudget, setRemainingBudget] = useState(0);
   const navigate = useNavigate();
 
   // Clear dailyData from localStorage when returning to setup
   useEffect(() => {
     if (!isSetupComplete) {
-      localStorage.removeItem('dailyData'); // Clear dailyData when returning to setup
+      localStorage.removeItem('dailyData');
     }
   }, [isSetupComplete]);
 
@@ -53,16 +70,16 @@ const BudgetPage = () => {
       const initialCategorySettings = {};
       selectedTemplate.categories.forEach((category) => {
         initialRatios[category] = '';
-        initialDollarAmounts[category] = '';
+        initialDollarAmounts[category] = null; // Use null instead of ''
         initialCategorySettings[category] = {
           useDollarAmounts: false,
           scheduleType: 'none',
-          isOneTime: false, // New field
-          oneTimeDate: new Date(), // New field
-          frequency: 'weekly', // New field
-          interval: 1, // New field
-          selectedDay: 'Monday', // New field
-          selectedDays: [], // For recurring payments
+          isOneTime: false,
+          oneTimeDate: new Date(),
+          frequency: 'weekly',
+          interval: 1,
+          selectedDay: 'Monday',
+          selectedDays: [],
         };
       });
       setRatios(initialRatios);
@@ -97,7 +114,7 @@ const BudgetPage = () => {
       const updatedCategories = [...categories, newCategory.trim()];
       setCategories(updatedCategories);
       setRatios({ ...ratios, [newCategory.trim()]: '' });
-      setDollarAmounts({ ...dollarAmounts, [newCategory.trim()]: '' });
+      setDollarAmounts({ ...dollarAmounts, [newCategory.trim()]: null }); // Use null instead of ''
       setCategorySettings({
         ...categorySettings,
         [newCategory.trim()]: {
@@ -138,7 +155,7 @@ const BudgetPage = () => {
   };
 
   const handleDollarAmountChange = (category, value) => {
-    if (!isNaN(value) && value >= 0) {
+    if (value === null || (!isNaN(value) && value >= 0)) {
       setDollarAmounts({ ...dollarAmounts, [category]: value });
     }
   };
@@ -265,13 +282,18 @@ const BudgetPage = () => {
                 Total Budget:
                 <input
                   type="number"
-                  value={totalBudget}
-                  onChange={(e) => setTotalBudget(e.target.value)}
+                  value={totalBudget || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setTotalBudget(value === '' ? '' : parseFloat(value) / exchangeRate);
+                  }}
                   placeholder="Enter total budget"
                   min="0"
                 />
               </label>
-              <p>Remaining Budget: ${remainingBudget.toFixed(2)}</p>
+              <p>
+                Remaining Budget: {currencySymbols[currency]}{(remainingBudget * exchangeRate).toFixed(2)}
+              </p>
             </div>
             <div className="time-period">
               <label>
@@ -328,14 +350,22 @@ const BudgetPage = () => {
                       type="number"
                       value={
                         categorySettings[category].useDollarAmounts
-                          ? dollarAmounts[category] || ''
+                          ? dollarAmounts[category] === null || dollarAmounts[category] === undefined
+                            ? ''
+                            : dollarAmounts[category] * exchangeRate
                           : ratios[category] || ''
                       }
-                      onChange={(e) =>
-                        categorySettings[category].useDollarAmounts
-                          ? handleDollarAmountChange(category, e.target.value)
-                          : handleRatioChange(category, e.target.value)
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (categorySettings[category].useDollarAmounts) {
+                          handleDollarAmountChange(
+                            category,
+                            value === '' ? null : parseFloat(value) / exchangeRate
+                          );
+                        } else {
+                          handleRatioChange(category, value);
+                        }
+                      }}
                       placeholder={
                         categorySettings[category].useDollarAmounts ? 'e.g., 50' : 'e.g., 20'
                       }

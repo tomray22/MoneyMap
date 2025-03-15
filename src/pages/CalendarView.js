@@ -11,7 +11,24 @@ import { enUS } from 'date-fns/locale';
 import { useBudget } from '../BudgetContext';
 import '../styles/Calendar.css';
 
-const CalendarView = () => {
+// Currency symbols for display
+const currencySymbols = {
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  JPY: '¥',
+  CNY: '¥',
+  INR: '₹',
+  AUD: 'A$',
+  CAD: 'C$',
+  CHF: 'CHF',
+  KRW: '₩',
+  PHP: '₱',
+  SGD: 'S$',
+  NZD: 'NZ$',
+};
+
+const CalendarView = ({ currency, exchangeRate }) => {
   const { budgetData } = useBudget();
   const navigate = useNavigate();
 
@@ -31,44 +48,23 @@ const CalendarView = () => {
 
     categories.forEach((category) => {
       if (category.schedule) {
-        const { type, frequency, interval, day, date } = category.schedule;
-
+        // Handle scheduled payments
+        const { type, days, date } = category.schedule;
         if (type === 'recurring') {
-          // Recurring payments with custom frequency and interval
-          let currentDate = new Date(startDate);
-          while (currentDate <= endDate) {
-            const dateKey = currentDate.toDateString();
-
-            // Check if the current date matches the schedule
-            let isScheduled = false;
-            if (frequency === 'weekly') {
-              const dayOfWeek = currentDate.toLocaleString('en-US', { weekday: 'long' });
-              isScheduled = dayOfWeek === day;
-            } else if (frequency === 'bi-weekly') {
-              const dayOfWeek = currentDate.toLocaleString('en-US', { weekday: 'long' });
-              const weeksSinceStart = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24 * 7));
-              isScheduled = dayOfWeek === day && weeksSinceStart % 2 === 0;
-            } else if (frequency === 'monthly') {
-              const dayOfMonth = currentDate.getDate();
-              isScheduled = dayOfMonth === parseInt(day, 10);
-            } else if (frequency === 'custom') {
-              const daysSinceStart = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24));
-              isScheduled = daysSinceStart % interval === 0;
-            }
-
-            if (isScheduled) {
+          // Recurring payments (e.g., every Monday and Friday)
+          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            const dayOfWeek = d.toLocaleString('en-US', { weekday: 'long' });
+            if (days.includes(dayOfWeek)) {
+              const dateKey = d.toDateString();
               dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
               dailyBudgets[dateKey].categories.push({
                 label: category.label,
-                expected: category.expected,
-                actual: savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0,
-                difference: category.expected,
+                expected: category.expected * exchangeRate,
+                actual: (savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0) * exchangeRate,
+                difference: category.expected * exchangeRate,
               });
-              dailyBudgets[dateKey].total += category.expected;
+              dailyBudgets[dateKey].total += category.expected * exchangeRate;
             }
-
-            // Move to the next day
-            currentDate.setDate(currentDate.getDate() + 1);
           }
         } else if (type === 'one-time') {
           // One-time payments
@@ -77,17 +73,17 @@ const CalendarView = () => {
             dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
             dailyBudgets[dateKey].categories.push({
               label: category.label,
-              expected: category.expected,
-              actual: savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0,
-              difference: category.expected,
+              expected: category.expected * exchangeRate,
+              actual: (savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0) * exchangeRate,
+              difference: category.expected * exchangeRate,
             });
-            dailyBudgets[dateKey].total += category.expected;
+            dailyBudgets[dateKey].total += category.expected * exchangeRate;
           }
         }
       } else {
         // Default behavior: spread the budget evenly
         const daysInBudget = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-        const dailyAmount = (category.expected / daysInBudget).toFixed(2);
+        const dailyAmount = (category.expected / daysInBudget) * exchangeRate;
         for (let i = 0; i < daysInBudget; i++) {
           const date = new Date(startDate);
           date.setDate(date.getDate() + i);
@@ -95,17 +91,17 @@ const CalendarView = () => {
           dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
           dailyBudgets[dateKey].categories.push({
             label: category.label,
-            expected: parseFloat(dailyAmount),
-            actual: savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0,
-            difference: parseFloat(dailyAmount),
+            expected: dailyAmount,
+            actual: (savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0) * exchangeRate,
+            difference: dailyAmount,
           });
-          dailyBudgets[dateKey].total += parseFloat(dailyAmount);
+          dailyBudgets[dateKey].total += dailyAmount;
         }
       }
     });
 
     return dailyBudgets;
-  }, [budgetData]);
+  }, [budgetData, exchangeRate]);
 
   // Handle date selection
   const handleDateChange = (date) => {
@@ -137,7 +133,7 @@ const CalendarView = () => {
       if (dailyBudgets[dateKey]) {
         return (
           <div className="budget-display">
-            <strong>Total:</strong> ${dailyBudgets[dateKey].total.toFixed(2)}
+            <strong>Total:</strong> {currencySymbols[currency]}{dailyBudgets[dateKey].total.toFixed(2)}
           </div>
         );
       }
@@ -158,7 +154,12 @@ const CalendarView = () => {
       if (dailyBudgets[dateKey]) {
         selectedData.push({
           date: dateKey,
-          categories: dailyBudgets[dateKey].categories,
+          categories: dailyBudgets[dateKey].categories.map((row) => ({
+            ...row,
+            expected: row.expected.toFixed(2),
+            actual: row.actual.toFixed(2),
+            difference: row.difference.toFixed(2),
+          })),
         });
       }
     }
@@ -182,7 +183,12 @@ const CalendarView = () => {
         doc.text(`Budget for ${day.date}`, 10, 10);
         autoTable(doc, {
           head: [['Label', 'Budgeted', 'Actual', 'Difference']],
-          body: day.categories.map((row) => [row.label, `$${row.expected.toFixed(2)}`, `$${row.actual || '0.00'}`, `$${row.difference.toFixed(2)}`]),
+          body: day.categories.map((row) => [
+            row.label,
+            `${currencySymbols[currency]}${row.expected}`,
+            `${currencySymbols[currency]}${row.actual}`,
+            `${currencySymbols[currency]}${row.difference}`,
+          ]),
         });
       });
       doc.save(`Budget_${startDate.toDateString()}_to_${endDate.toDateString()}.pdf`);
@@ -201,7 +207,7 @@ const CalendarView = () => {
             selectsStart
             startDate={startDate}
             endDate={endDate}
-            minDate={new Date(budgetData.startDate)} // Ensure the start date cannot be before the budget start date
+            minDate={new Date(budgetData.startDate)}
           />
         </label>
         <label>
@@ -217,14 +223,21 @@ const CalendarView = () => {
         </label>
         <button onClick={() => exportTimeRangeData('excel')}>Export to Excel</button>
         <button onClick={() => exportTimeRangeData('pdf')}>Export to PDF</button>
+        <button
+          onClick={() =>
+            navigate('/summary', { state: { startDate, endDate } })
+          }
+        >
+          View Summary
+        </button>
       </div>
       <Calendar
         onClickDay={handleDateChange}
         value={selectedDate}
         tileContent={tileContent}
-        locale={enUS} // Set the locale to enUS (starts on Sunday)
-        defaultView="month" // Set the default view to month
-        defaultActiveStartDate={new Date(budgetData.startDate)} // Set the initial view to the start date
+        locale={enUS}
+        defaultView="month"
+        defaultActiveStartDate={new Date(budgetData.startDate)}
         minDate={new Date(budgetData.startDate)}
         maxDate={new Date(budgetData.endDate)}
       />

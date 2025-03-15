@@ -6,7 +6,24 @@ import autoTable from 'jspdf-autotable';
 import { useBudget } from '../BudgetContext';
 import '../styles/BudgetTable.css';
 
-const BudgetTable = () => {
+// Currency symbols for display
+const currencySymbols = {
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  JPY: '¥',
+  CNY: '¥',
+  INR: '₹',
+  AUD: 'A$',
+  CAD: 'C$',
+  CHF: 'CHF',
+  KRW: '₩',
+  PHP: '₱',
+  SGD: 'S$',
+  NZD: 'NZ$',
+};
+
+const BudgetTable = ({ currency, exchangeRate }) => {
   const { date } = useParams(); // Get date from URL params
   const { budgetData } = useBudget(); // Access budgetData from context
   const [rows, setRows] = useState([]);
@@ -21,12 +38,18 @@ const BudgetTable = () => {
     { budgeted: 0, actual: 0, difference: 0 }
   );
 
-  // Load saved data from localStorage on component mount
+  // Load saved data from localStorage and recalculate rows when currency or exchangeRate changes
   useEffect(() => {
     const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
     if (savedData[date]) {
       // Use saved data for the selected date
-      setRows(savedData[date]);
+      const updatedRows = savedData[date].map((row) => ({
+        ...row,
+        expected: row.expected * exchangeRate,
+        actual: row.actual * exchangeRate,
+        difference: row.difference * exchangeRate,
+      }));
+      setRows(updatedRows);
     } else if (budgetData?.categories) {
       // If no saved data exists, calculate the daily budget allocation
       const daysInBudget = Math.ceil((new Date(budgetData.endDate) - new Date(budgetData.startDate)) / (1000 * 60 * 60 * 24));
@@ -67,22 +90,22 @@ const BudgetTable = () => {
           let expected = 0;
           if (category.schedule) {
             // For scheduled payments, use the full expected amount
-            expected = category.expected;
+            expected = category.expected * exchangeRate;
           } else {
             // For non-scheduled payments, spread the budget evenly
-            expected = (category.expected / daysInBudget).toFixed(2);
+            expected = (category.expected / daysInBudget) * exchangeRate;
           }
           return {
             label: category.label,
-            expected: parseFloat(expected),
-            actual: 0,
-            difference: parseFloat(expected),
+            expected: expected,
+            actual: (savedData[date]?.find((row) => row.label === category.label))?.actual || 0,
+            difference: expected - ((savedData[date]?.find((row) => row.label === category.label))?.actual || 0),
           };
         });
 
       setRows(initialRows);
     }
-  }, [date, budgetData]);
+  }, [date, budgetData, exchangeRate, currency]); // Add currency and exchangeRate to dependencies
 
   // Save data to localStorage whenever rows change
   useEffect(() => {
@@ -97,8 +120,8 @@ const BudgetTable = () => {
   const handleActualChange = (index, value) => {
     const updatedRows = [...rows];
     const actualValue = isNaN(value) ? 0 : parseFloat(value); // Validate input
-    updatedRows[index].actual = actualValue;
-    updatedRows[index].difference = updatedRows[index].expected - actualValue;
+    updatedRows[index].actual = actualValue * exchangeRate;
+    updatedRows[index].difference = updatedRows[index].expected - (actualValue * exchangeRate);
     setRows(updatedRows);
   };
 
@@ -109,21 +132,12 @@ const BudgetTable = () => {
       return;
     }
 
-    // Include the totals row in the export
-    const data = [
-      ...rows.map((row) => ({
-        Label: row.label,
-        Budgeted: `$${row.expected.toFixed(2)}`,
-        Actual: `$${row.actual || '0.00'}`,
-        Difference: `$${row.difference.toFixed(2)}`,
-      })),
-      {
-        Label: 'Totals',
-        Budgeted: `$${totals.budgeted.toFixed(2)}`,
-        Actual: `$${totals.actual.toFixed(2)}`,
-        Difference: `$${totals.difference.toFixed(2)}`,
-      },
-    ];
+    const data = rows.map((row) => ({
+      Label: row.label,
+      Budgeted: `${currencySymbols[currency]}${row.expected.toFixed(2)}`,
+      Actual: `${currencySymbols[currency]}${(row.actual || 0).toFixed(2)}`,
+      Difference: `${currencySymbols[currency]}${row.difference.toFixed(2)}`,
+    }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
@@ -141,7 +155,12 @@ const BudgetTable = () => {
     doc.text(`Budget for ${date}`, 10, 10);
     autoTable(doc, {
       head: [['Label', 'Budgeted', 'Actual', 'Difference']],
-      body: rows.map((row) => [row.label, `$${row.expected.toFixed(2)}`, `$${row.actual || '0.00'}`, `$${row.difference.toFixed(2)}`]),
+      body: rows.map((row) => [
+        row.label,
+        `${currencySymbols[currency]}${row.expected.toFixed(2)}`,
+        `${currencySymbols[currency]}${(row.actual || 0).toFixed(2)}`,
+        `${currencySymbols[currency]}${row.difference.toFixed(2)}`,
+      ]),
     });
     doc.save(`Budget_${date}.pdf`);
   };
@@ -166,25 +185,25 @@ const BudgetTable = () => {
           {rows.map((row, index) => (
             <tr key={index}>
               <td>{row.label}</td>
-              <td>${row.expected.toFixed(2)}</td>
+              <td>{currencySymbols[currency]}{row.expected.toFixed(2)}</td>
               <td>
                 <input
                   type="number"
-                  value={row.actual || ''}
+                  value={row.actual === undefined ? '' : (row.actual / exchangeRate).toFixed(2)}
                   onChange={(e) => handleActualChange(index, parseFloat(e.target.value))}
                   placeholder="Enter actual"
                 />
               </td>
-              <td>${row.difference ? row.difference.toFixed(2) : row.expected.toFixed(2)}</td>
+              <td>{currencySymbols[currency]}{row.difference.toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="totals-row">
             <td><strong>Totals</strong></td>
-            <td><strong>${totals.budgeted.toFixed(2)}</strong></td>
-            <td><strong>${totals.actual.toFixed(2)}</strong></td>
-            <td><strong>${totals.difference.toFixed(2)}</strong></td>
+            <td><strong>{currencySymbols[currency]}{totals.budgeted.toFixed(2)}</strong></td>
+            <td><strong>{currencySymbols[currency]}{totals.actual.toFixed(2)}</strong></td>
+            <td><strong>{currencySymbols[currency]}{totals.difference.toFixed(2)}</strong></td>
           </tr>
         </tfoot>
       </table>
