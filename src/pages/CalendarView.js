@@ -31,14 +31,32 @@ const CalendarView = () => {
 
     categories.forEach((category) => {
       if (category.schedule) {
-        // Handle scheduled payments
-        const { type, days, date } = category.schedule;
+        const { type, frequency, interval, day, date } = category.schedule;
+
         if (type === 'recurring') {
-          // Recurring payments (e.g., every Monday and Friday)
-          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-            const dayOfWeek = d.toLocaleString('en-US', { weekday: 'long' });
-            if (days.includes(dayOfWeek)) {
-              const dateKey = d.toDateString();
+          // Recurring payments with custom frequency and interval
+          let currentDate = new Date(startDate);
+          while (currentDate <= endDate) {
+            const dateKey = currentDate.toDateString();
+
+            // Check if the current date matches the schedule
+            let isScheduled = false;
+            if (frequency === 'weekly') {
+              const dayOfWeek = currentDate.toLocaleString('en-US', { weekday: 'long' });
+              isScheduled = dayOfWeek === day;
+            } else if (frequency === 'bi-weekly') {
+              const dayOfWeek = currentDate.toLocaleString('en-US', { weekday: 'long' });
+              const weeksSinceStart = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24 * 7));
+              isScheduled = dayOfWeek === day && weeksSinceStart % 2 === 0;
+            } else if (frequency === 'monthly') {
+              const dayOfMonth = currentDate.getDate();
+              isScheduled = dayOfMonth === parseInt(day, 10);
+            } else if (frequency === 'custom') {
+              const daysSinceStart = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24));
+              isScheduled = daysSinceStart % interval === 0;
+            }
+
+            if (isScheduled) {
               dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
               dailyBudgets[dateKey].categories.push({
                 label: category.label,
@@ -48,6 +66,9 @@ const CalendarView = () => {
               });
               dailyBudgets[dateKey].total += category.expected;
             }
+
+            // Move to the next day
+            currentDate.setDate(currentDate.getDate() + 1);
           }
         } else if (type === 'one-time') {
           // One-time payments

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useBudget } from '../BudgetContext'; // Import useBudget
+import { useBudget } from '../BudgetContext';
 import '../styles/BudgetTable.css';
 
 const BudgetTable = () => {
@@ -20,14 +20,33 @@ const BudgetTable = () => {
     } else if (budgetData?.categories) {
       // If no saved data exists, calculate the daily budget allocation
       const daysInBudget = Math.ceil((new Date(budgetData.endDate) - new Date(budgetData.startDate)) / (1000 * 60 * 60 * 24));
+      const selectedDateObj = new Date(date);
+
       const initialRows = budgetData.categories
         .filter((category) => {
           if (category.schedule) {
-            const { type, days, date: scheduledDate } = category.schedule;
+            const { type, frequency, interval, day, date: scheduledDate } = category.schedule;
+
             if (type === 'recurring') {
-              const dayOfWeek = new Date(date).toLocaleString('en-US', { weekday: 'long' });
-              return days.includes(dayOfWeek);
+              // Recurring payments with custom frequency and interval
+              let isScheduled = false;
+              if (frequency === 'weekly') {
+                const dayOfWeek = selectedDateObj.toLocaleString('en-US', { weekday: 'long' });
+                isScheduled = dayOfWeek === day;
+              } else if (frequency === 'bi-weekly') {
+                const dayOfWeek = selectedDateObj.toLocaleString('en-US', { weekday: 'long' });
+                const weeksSinceStart = Math.floor((selectedDateObj - new Date(budgetData.startDate)) / (1000 * 60 * 60 * 24 * 7));
+                isScheduled = dayOfWeek === day && weeksSinceStart % 2 === 0;
+              } else if (frequency === 'monthly') {
+                const dayOfMonth = selectedDateObj.getDate();
+                isScheduled = dayOfMonth === parseInt(day, 10);
+              } else if (frequency === 'custom') {
+                const daysSinceStart = Math.floor((selectedDateObj - new Date(budgetData.startDate)) / (1000 * 60 * 60 * 24));
+                isScheduled = daysSinceStart % interval === 0;
+              }
+              return isScheduled;
             } else if (type === 'one-time') {
+              // One-time payments
               return new Date(scheduledDate).toDateString() === date;
             }
           }
@@ -50,6 +69,7 @@ const BudgetTable = () => {
             difference: parseFloat(expected),
           };
         });
+
       setRows(initialRows);
     }
   }, [date, budgetData]);

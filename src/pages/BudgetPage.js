@@ -57,8 +57,12 @@ const BudgetPage = () => {
         initialCategorySettings[category] = {
           useDollarAmounts: false,
           scheduleType: 'none',
-          selectedDays: [],
-          oneTimeDate: new Date(),
+          isOneTime: false, // New field
+          oneTimeDate: new Date(), // New field
+          frequency: 'weekly', // New field
+          interval: 1, // New field
+          selectedDay: 'Monday', // New field
+          selectedDays: [], // For recurring payments
         };
       });
       setRatios(initialRatios);
@@ -99,8 +103,12 @@ const BudgetPage = () => {
         [newCategory.trim()]: {
           useDollarAmounts: false,
           scheduleType: 'none',
-          selectedDays: [],
+          isOneTime: false,
           oneTimeDate: new Date(),
+          frequency: 'weekly',
+          interval: 1,
+          selectedDay: 'Monday',
+          selectedDays: [],
         },
       });
       setNewCategory('');
@@ -211,9 +219,15 @@ const BudgetPage = () => {
         : ((ratios[category] || 0) / 100) * totalBudget,
       schedule: categorySettings[category].scheduleType === 'none'
         ? null
-        : categorySettings[category].scheduleType === 'one-time'
-        ? { type: 'one-time', date: categorySettings[category].oneTimeDate.toISOString().split('T')[0] }
-        : { type: 'recurring', days: categorySettings[category].selectedDays },
+        : {
+            type: categorySettings[category].isOneTime ? 'one-time' : 'recurring',
+            date: categorySettings[category].isOneTime
+              ? categorySettings[category].oneTimeDate.toISOString().split('T')[0]
+              : null,
+            frequency: categorySettings[category].frequency,
+            interval: categorySettings[category].interval || 1,
+            day: categorySettings[category].selectedDay,
+          },
     }));
 
     const newBudgetData = {
@@ -347,22 +361,81 @@ const BudgetPage = () => {
                     </button>
                   </div>
                   {categorySettings[category].scheduleType === 'recurring' && (
-                    <div className="recurring-days-dropdown">
-                      <label>Select Days:</label>
-                      <select
-                        multiple
-                        value={categorySettings[category].selectedDays}
-                        onChange={(e) => {
-                          const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
-                          handleCategorySettingChange(category, 'selectedDays', selectedOptions);
-                        }}
-                      >
-                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                          <option key={day} value={day}>
-                            {day}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="schedule-options">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={categorySettings[category].isOneTime}
+                          onChange={(e) =>
+                            handleCategorySettingChange(category, 'isOneTime', e.target.checked)
+                          }
+                        />
+                        One-Time Payment
+                      </label>
+
+                      {categorySettings[category].isOneTime ? (
+                        <div className="one-time-date">
+                          <label>
+                            Date:
+                            <DatePicker
+                              selected={categorySettings[category].oneTimeDate}
+                              onChange={(date) =>
+                                handleCategorySettingChange(category, 'oneTimeDate', date)
+                              }
+                              dateFormat="MM/dd/yyyy"
+                              minDate={startDate}
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="recurring-options">
+                          <label>
+                            Frequency:
+                            <select
+                              value={categorySettings[category].frequency}
+                              onChange={(e) =>
+                                handleCategorySettingChange(category, 'frequency', e.target.value)
+                              }
+                            >
+                              <option value="weekly">Weekly</option>
+                              <option value="bi-weekly">Bi-Weekly</option>
+                              <option value="monthly">Monthly</option>
+                              <option value="custom">Custom Interval</option>
+                            </select>
+                          </label>
+
+                          {categorySettings[category].frequency === 'custom' && (
+                            <label>
+                              Interval:
+                              <input
+                                type="number"
+                                value={categorySettings[category].interval || ''}
+                                onChange={(e) =>
+                                  handleCategorySettingChange(category, 'interval', parseInt(e.target.value, 10))
+                                }
+                                placeholder="e.g., 2 (for every 2 weeks)"
+                                min="1"
+                              />
+                            </label>
+                          )}
+
+                          <label>
+                            Day:
+                            <select
+                              value={categorySettings[category].selectedDay}
+                              onChange={(e) =>
+                                handleCategorySettingChange(category, 'selectedDay', e.target.value)
+                              }
+                            >
+                              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                                <option key={day} value={day}>
+                                  {day}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      )}
                     </div>
                   )}
                 </li>
