@@ -5,7 +5,7 @@ import BudgetPage from './pages/BudgetPage';
 import CalendarView from './pages/CalendarView';
 import BudgetTable from './components/BudgetTable';
 import SummaryPage from './pages/SummaryPage';
-import CurrencyConverter from './components/CurrencyConverter'; // Import the new component
+import CurrencyConverter from './components/CurrencyConverter';
 import './styles/App.css';
 
 const App = () => {
@@ -21,28 +21,64 @@ const App = () => {
   return (
     <BudgetProvider>
       <Router>
+        {/* Currency Converter (fixed position) */}
         <CurrencyConverter onCurrencyChange={handleCurrencyChange} />
+
         <Routes>
           <Route
             path="/"
             element={
               <div className="home">
-                <h1>Welcome to MoneyMap</h1>
-                <p>
-                  MoneyMap is your personal budgeting companion. Plan your expenses, track your
-                  spending, and stay on top of your financial goals with ease.
-                </p>
-                <div className="features">
-                  <h2>Features:</h2>
-                  <ul>
-                    <li>Set up a budget with custom categories and time periods.</li>
-                    <li>Track your daily spending with an interactive calendar.</li>
-                    <li>Export your budget data to Excel or PDF.</li>
-                  </ul>
+                {/* Main Content Wrapper */}
+                <div className="main-content">
+                  {/* Hero Section */}
+                  <div className="hero">
+                    <h1>Take Control of Your Finances</h1>
+                    <p>
+                      MoneyMap is your all-in-one budgeting tool designed to help you plan, track, and achieve your financial goals. Whether you're new to budgeting or a seasoned pro, MoneyMap makes it easy to manage your money.
+                    </p>
+                    <Link to="/budget">
+                      <button className="start-button">Get Started</button>
+                    </Link>
+                  </div>
+
+                  {/* Features Section */}
+                  <div className="features">
+                    <h2>Why Choose MoneyMap?</h2>
+                    <div className="feature-cards">
+                      <div className="feature-card">
+                        <i className="fas fa-piggy-bank"></i>
+                        <h3>Simple Budget Setup</h3>
+                        <p>Create a budget in minutes with customizable categories and time periods. Perfect for beginners!</p>
+                      </div>
+                      <div className="feature-card">
+                        <i className="fas fa-calendar-check"></i>
+                        <h3>Daily Tracking</h3>
+                        <p>Track your spending day by day with an interactive calendar. Stay on top of your finances effortlessly.</p>
+                      </div>
+                      <div className="feature-card">
+                        <i className="fas fa-chart-line"></i>
+                        <h3>Progress Insights</h3>
+                        <p>See how much you've saved or spent compared to your budget. Visualize your progress with clear charts.</p>
+                      </div>
+                      <div className="feature-card">
+                        <i className="fas fa-file-export"></i>
+                        <h3>Export Your Data</h3>
+                        <p>Export your budget and spending data to Excel or PDF for easy sharing and offline access.</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <Link to="/budget">
-                  <button className="start-button">Start Budget Setup</button>
-                </Link>
+
+                {/* Footer */}
+                <footer className="footer">
+                  <p>&copy; 2023 MoneyMap. All rights reserved.</p>
+                  <div className="footer-links">
+                    <a href="/about">About</a>
+                    <a href="/contact">Contact</a>
+                    <a href="/privacy">Privacy Policy</a>
+                  </div>
+                </footer>
               </div>
             }
           />

@@ -4,11 +4,9 @@ import Calendar from 'react-calendar';
 import DatePicker from 'react-datepicker';
 import 'react-calendar/dist/Calendar.css';
 import 'react-datepicker/dist/react-datepicker.css';
-import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { enUS } from 'date-fns/locale';
 import { useBudget } from '../BudgetContext';
+import { exportToCSV, exportToPDF } from '../components/exportUtils';
+import { enUS } from 'date-fns/locale';
 import '../styles/Calendar.css';
 
 // Currency symbols for display
@@ -39,67 +37,64 @@ const CalendarView = ({ currency, exchangeRate }) => {
   // Memoize daily budgets to avoid recalculating on every render
   const dailyBudgets = useMemo(() => {
     if (!budgetData) return {};
-
+  
     const { categories, startDate, endDate } = budgetData;
     const dailyBudgets = {};
-
+  
     // Load saved data from localStorage
     const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
-
-    categories.forEach((category) => {
-      if (category.schedule) {
-        // Handle scheduled payments
-        const { type, days, date } = category.schedule;
-        if (type === 'recurring') {
-          // Recurring payments (e.g., every Monday and Friday)
-          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+  
+    // Loop through each day from startDate to endDate (inclusive)
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateKey = d.toDateString();
+      dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
+  
+      categories.forEach((category) => {
+        if (category.schedule) {
+          // Handle scheduled payments
+          const { type, days, date } = category.schedule;
+          if (type === 'recurring') {
+            // Recurring payments (e.g., every Monday and Friday)
             const dayOfWeek = d.toLocaleString('en-US', { weekday: 'long' });
             if (days.includes(dayOfWeek)) {
-              const dateKey = d.toDateString();
-              dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
+              const savedRow = savedData[dateKey]?.rows?.find((row) => row.label === category.label);
               dailyBudgets[dateKey].categories.push({
                 label: category.label,
                 expected: category.expected * exchangeRate,
-                actual: (savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0) * exchangeRate,
-                difference: category.expected * exchangeRate,
+                actual: (savedRow?.actual || 0) * exchangeRate,
+                difference: category.expected * exchangeRate - (savedRow?.actual || 0) * exchangeRate,
+              });
+              dailyBudgets[dateKey].total += category.expected * exchangeRate;
+            }
+          } else if (type === 'one-time') {
+            // One-time payments
+            if (new Date(date).toDateString() === dateKey) {
+              const savedRow = savedData[dateKey]?.rows?.find((row) => row.label === category.label);
+              dailyBudgets[dateKey].categories.push({
+                label: category.label,
+                expected: category.expected * exchangeRate,
+                actual: (savedRow?.actual || 0) * exchangeRate,
+                difference: category.expected * exchangeRate - (savedRow?.actual || 0) * exchangeRate,
               });
               dailyBudgets[dateKey].total += category.expected * exchangeRate;
             }
           }
-        } else if (type === 'one-time') {
-          // One-time payments
-          const dateKey = new Date(date).toDateString();
-          if (new Date(date) >= startDate && new Date(date) <= endDate) {
-            dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
-            dailyBudgets[dateKey].categories.push({
-              label: category.label,
-              expected: category.expected * exchangeRate,
-              actual: (savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0) * exchangeRate,
-              difference: category.expected * exchangeRate,
-            });
-            dailyBudgets[dateKey].total += category.expected * exchangeRate;
-          }
-        }
-      } else {
-        // Default behavior: spread the budget evenly
-        const daysInBudget = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-        const dailyAmount = (category.expected / daysInBudget) * exchangeRate;
-        for (let i = 0; i < daysInBudget; i++) {
-          const date = new Date(startDate);
-          date.setDate(date.getDate() + i);
-          const dateKey = date.toDateString();
-          dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
+        } else {
+          // Default behavior: spread the budget evenly
+          const daysInBudget = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+          const dailyAmount = (category.expected / daysInBudget) * exchangeRate;
+          const savedRow = savedData[dateKey]?.rows?.find((row) => row.label === category.label);
           dailyBudgets[dateKey].categories.push({
             label: category.label,
             expected: dailyAmount,
-            actual: (savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0) * exchangeRate,
-            difference: dailyAmount,
+            actual: (savedRow?.actual || 0) * exchangeRate,
+            difference: dailyAmount - (savedRow?.actual || 0) * exchangeRate,
           });
           dailyBudgets[dateKey].total += dailyAmount;
         }
-      }
-    });
-
+      });
+    }
+  
     return dailyBudgets;
   }, [budgetData, exchangeRate]);
 
@@ -141,57 +136,106 @@ const CalendarView = ({ currency, exchangeRate }) => {
     return null;
   };
 
+  // Highlight the budget goal day and add green/red highlights
+  const tileClassName = ({ date }) => {
+    const dateKey = date.toDateString();
+    const endDateKey = new Date(budgetData.endDate).toDateString();
+    const dayData = dailyBudgets[dateKey];
+  
+    let className = '';
+    if (dateKey === endDateKey) {
+      className += ' budget-goal-day savings-goal-day-outline '; // Highlight savings goal date with outline
+    }
+    if (dayData) {
+      const totalDifference = dayData.categories.reduce((sum, row) => sum + row.difference, 0);
+      if (totalDifference > 0) {
+        className += ' saved-more '; // Green for saving more than expected
+      } else if (totalDifference < 0) {
+        className += ' overspent '; // Red for overspending
+      }
+    }
+    return className.trim();
+  };
+
+  // Calculate totals for the selected date range
+  const calculateTotals = (selectedData) => {
+    const totals = {
+      budgeted: 0,
+      actual: 0,
+      difference: 0,
+      savings: 0,
+      unexpectedExpenses: 0,
+    };
+
+    selectedData.forEach((day) => {
+      day.rows.forEach((row) => {
+        totals.budgeted += row.expected;
+        totals.actual += row.actual;
+        totals.difference += row.difference;
+      });
+      totals.savings += day.savings || 0;
+      totals.unexpectedExpenses += day.unexpectedExpenses || 0;
+    });
+
+    return totals;
+  };
+
   // Export data for the selected time range
   const exportTimeRangeData = (format) => {
     if (!startDate || !endDate) {
       alert('Please select a valid date range.');
       return;
     }
-
+  
+    // Gather data for the selected date range
     const selectedData = [];
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       const dateKey = d.toDateString();
       if (dailyBudgets[dateKey]) {
         selectedData.push({
           date: dateKey,
-          categories: dailyBudgets[dateKey].categories.map((row) => ({
-            ...row,
-            expected: row.expected.toFixed(2),
-            actual: row.actual.toFixed(2),
-            difference: row.difference.toFixed(2),
+          rows: dailyBudgets[dateKey].categories.map((row) => ({
+            label: row.label,
+            expected: parseFloat(row.expected.toFixed(2)), // Ensure numeric value
+            actual: parseFloat(row.actual.toFixed(2)), // Ensure numeric value
+            difference: parseFloat(row.difference.toFixed(2)), // Ensure numeric value
           })),
+          supplementalIncomes: dailyBudgets[dateKey].supplementalIncome
+            ? [{ label: 'Supplemental Income', amount: parseFloat(dailyBudgets[dateKey].supplementalIncome.toFixed(2)) }]
+            : [],
+          unexpectedExpenses: dailyBudgets[dateKey].unexpectedExpenses
+            ? [{ label: 'Unexpected Expenses', amount: parseFloat(dailyBudgets[dateKey].unexpectedExpenses.toFixed(2)) }]
+            : [],
+          savings: parseFloat((dailyBudgets[dateKey].savings || 0).toFixed(2)), // Ensure numeric value
         });
       }
     }
-
+  
     if (selectedData.length === 0) {
       alert('No data available for the selected date range.');
       return;
     }
-
-    if (format === 'excel') {
-      const workbook = XLSX.utils.book_new();
-      selectedData.forEach((day) => {
-        const worksheet = XLSX.utils.json_to_sheet(day.categories);
-        XLSX.utils.book_append_sheet(workbook, worksheet, day.date);
-      });
-      XLSX.writeFile(workbook, `Budget_${startDate.toDateString()}_to_${endDate.toDateString()}.xlsx`);
+  
+    // Calculate totals for the selected date range
+    const totals = {
+      budgeted: selectedData.reduce((sum, day) => sum + day.rows.reduce((rowSum, row) => rowSum + row.expected, 0), 0),
+      actual: selectedData.reduce((sum, day) => sum + day.rows.reduce((rowSum, row) => rowSum + row.actual, 0), 0),
+      difference: selectedData.reduce((sum, day) => sum + day.rows.reduce((rowSum, row) => rowSum + row.difference, 0), 0),
+      savings: selectedData.reduce((sum, day) => sum + day.savings, 0),
+      unexpectedExpenses: selectedData.reduce((sum, day) => sum + (day.unexpectedExpenses[0]?.amount || 0), 0),
+    };
+  
+    // Prepare data for export
+    const data = {
+      totals,
+      dailyData: selectedData,
+    };
+  
+    // Export based on the selected format
+    if (format === 'csv') {
+      exportToCSV(data, `Budget_${startDate.toDateString()}_to_${endDate.toDateString()}`);
     } else if (format === 'pdf') {
-      const doc = new jsPDF();
-      selectedData.forEach((day, index) => {
-        if (index > 0) doc.addPage(); // Add a new page for each day
-        doc.text(`Budget for ${day.date}`, 10, 10);
-        autoTable(doc, {
-          head: [['Label', 'Budgeted', 'Actual', 'Difference']],
-          body: day.categories.map((row) => [
-            row.label,
-            `${currencySymbols[currency]}${row.expected}`,
-            `${currencySymbols[currency]}${row.actual}`,
-            `${currencySymbols[currency]}${row.difference}`,
-          ]),
-        });
-      });
-      doc.save(`Budget_${startDate.toDateString()}_to_${endDate.toDateString()}.pdf`);
+      exportToPDF(data, `Budget_${startDate.toDateString()}_to_${endDate.toDateString()}`, currencySymbols[currency]);
     }
   };
 
@@ -221,7 +265,7 @@ const CalendarView = ({ currency, exchangeRate }) => {
             minDate={startDate}
           />
         </label>
-        <button onClick={() => exportTimeRangeData('excel')}>Export to Excel</button>
+        <button onClick={() => exportTimeRangeData('csv')}>Export to CSV</button>
         <button onClick={() => exportTimeRangeData('pdf')}>Export to PDF</button>
         <button
           onClick={() =>
@@ -235,6 +279,7 @@ const CalendarView = ({ currency, exchangeRate }) => {
         onClickDay={handleDateChange}
         value={selectedDate}
         tileContent={tileContent}
+        tileClassName={tileClassName}
         locale={enUS}
         defaultView="month"
         defaultActiveStartDate={new Date(budgetData.startDate)}

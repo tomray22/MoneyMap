@@ -3,7 +3,22 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 const BudgetContext = createContext();
 
 export const BudgetProvider = ({ children }) => {
-  const [budgetData, setBudgetData] = useState(null);
+  const [budgetData, setBudgetData] = useState({
+    incomeType: 'one-time', // 'one-time' or 'gross-income'
+    grossIncome: null, // Only used if incomeType is 'gross-income'
+    incomeInterval: 'monthly', // Only used if incomeType is 'gross-income'
+    totalBudget: null, // Only used if incomeType is 'one-time'
+    categories: [],
+    startDate: new Date(),
+    endDate: null,
+    timePeriod: 'monthly',
+    budgetGoals: {
+      savingsGoal: null, // For future Savings Goal feature
+      savingsInterval: 'monthly',
+    },
+    remainingBudget: 0, // For Budgeted Savings
+  });
+
 
   // Load budgetData from localStorage on initial render
   useEffect(() => {
@@ -19,15 +34,6 @@ export const BudgetProvider = ({ children }) => {
       localStorage.setItem('budgetData', JSON.stringify(budgetData));
     }
   }, [budgetData]);
-
-  // Debug logs to check if budgetData isn't being saved properly
-  useEffect(() => {
-    const savedData = JSON.parse(localStorage.getItem('budgetData'));
-    console.log("Loaded budgetData from localStorage:", savedData); // Debugging log
-    if (savedData) {
-      setBudgetData(savedData);
-    }
-  }, []);  
 
   return (
     <BudgetContext.Provider value={{ budgetData, setBudgetData }}>
