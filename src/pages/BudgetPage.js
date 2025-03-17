@@ -38,6 +38,7 @@ const templates = [
 ];
 
 const BudgetPage = ({ currency, exchangeRate }) => {
+  const navigate = useNavigate(); 
   const { budgetData, setBudgetData } = useBudget();
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -57,8 +58,9 @@ const BudgetPage = ({ currency, exchangeRate }) => {
     grossIncome: '',
     incomeInterval: 'monthly',
   });
-  const [savingsGoal, setSavingsGoal] = useState('');
-  const navigate = useNavigate();
+  const [savingsGoalEnabled, setSavingsGoalEnabled] = useState(false);
+  const [savingsGoalAmount, setSavingsGoalAmount] = useState('');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Clear dailyData from localStorage when returning to setup
   useEffect(() => {
@@ -120,31 +122,31 @@ const BudgetPage = ({ currency, exchangeRate }) => {
     setTotalBudget(''); // Reset total budget when switching income type
   };
 
-// Handle gross income change
-const handleGrossIncomeChange = (value) => {
-  setIncomeData({ ...incomeData, grossIncome: value });
-  if (incomeData.incomeInterval && value) {
-    const income = parseFloat(value);
-    let calculatedBudget = 0;
-    switch (incomeData.incomeInterval) {
-      case 'weekly':
-        calculatedBudget = income * 4; // Approximate monthly budget
-        break;
-      case 'bi-weekly':
-        calculatedBudget = income * 2; // Approximate monthly budget
-        break;
-      case 'monthly':
-        calculatedBudget = income;
-        break;
-      case 'annually':
-        calculatedBudget = income / 12; // Approximate monthly budget
-        break;
-      default:
-        calculatedBudget = 0;
+  // Handle gross income change
+  const handleGrossIncomeChange = (value) => {
+    setIncomeData({ ...incomeData, grossIncome: value });
+    if (incomeData.incomeInterval && value) {
+      const income = parseFloat(value);
+      let calculatedBudget = 0;
+      switch (incomeData.incomeInterval) {
+        case 'weekly':
+          calculatedBudget = income * 4; // Approximate monthly budget
+          break;
+        case 'bi-weekly':
+          calculatedBudget = income * 2; // Approximate monthly budget
+          break;
+        case 'monthly':
+          calculatedBudget = income;
+          break;
+        case 'annually':
+          calculatedBudget = income / 12; // Approximate monthly budget
+          break;
+        default:
+          calculatedBudget = 0;
+      }
+      setTotalBudget(calculatedBudget.toFixed(2));
     }
-    setTotalBudget(calculatedBudget.toFixed(2));
-  }
-};
+  };
 
   // Handle template selection
   const handleTemplateClick = (template) => {
@@ -246,13 +248,27 @@ const handleGrossIncomeChange = (value) => {
     });
   };
 
+  // Check savings goal feasibility
+  const checkSavingsGoalFeasibility = () => {
+    if (savingsGoalEnabled && savingsGoalAmount) {
+      const goal = parseFloat(savingsGoalAmount);
+      const remaining = remainingBudget;
+
+      if (goal > remaining) {
+        alert(`Warning: Your savings goal (${currencySymbols[currency]}${goal.toFixed(2)}) exceeds your remaining budget (${currencySymbols[currency]}${remaining.toFixed(2)}).`);
+      }
+    }
+  };
+
   // Complete the budget setup
   const handleCompleteSetup = () => {
     if (!totalBudget || isNaN(totalBudget)) {
       alert('Please enter a valid total budget.');
       return;
     }
-  
+
+    checkSavingsGoalFeasibility(); // Check savings goal feasibility
+
     // Calculate end date based on time period
     let calculatedEndDate;
     if (timePeriod === 'weekly') {
@@ -271,7 +287,7 @@ const handleGrossIncomeChange = (value) => {
       alert('Please specify a valid time period.');
       return;
     }
-  
+
     // Prepare budget data
     const calculatedCategories = categories.map((category) => ({
       label: category,
@@ -290,26 +306,30 @@ const handleGrossIncomeChange = (value) => {
             day: categorySettings[category].selectedDay,
           },
     }));
-  
-  // Prepare budget data
-  const newBudgetData = {
-    categories: calculatedCategories,
-    totalBudget: parseFloat(totalBudget),
-    startDate,
-    endDate: calculatedEndDate,
-    incomeType,
-    grossIncome: incomeType === 'gross-income' ? parseFloat(incomeData.grossIncome) : null,
-    incomeInterval: incomeType === 'gross-income' ? incomeData.incomeInterval : null,
-    budgetGoals: {
-      savingsGoal: parseFloat(savingsGoal) || 0, // For future Savings Goal feature
-      savingsInterval: 'monthly',
-    },
-    remainingBudget: remainingBudget, // For Budgeted Savings
-  };
-  
+
+    const newBudgetData = {
+      categories: calculatedCategories,
+      totalBudget: parseFloat(totalBudget),
+      startDate,
+      endDate: calculatedEndDate,
+      incomeType,
+      grossIncome: incomeType === 'gross-income' ? parseFloat(incomeData.grossIncome) : null,
+      incomeInterval: incomeType === 'gross-income' ? incomeData.incomeInterval : null,
+      budgetGoals: {
+        savingsGoal: savingsGoalEnabled ? parseFloat(savingsGoalAmount) : 0,
+        savingsInterval: 'monthly',
+      },
+      remainingBudget: remainingBudget,
+    };
+
     setBudgetData(newBudgetData);
     setIsSetupComplete(true);
     navigate('/calendar');
+  };
+
+  // Toggle drawer
+  const toggleDrawer = () => {
+    setIsDrawerOpen(!isDrawerOpen);
   };
 
   if (!isSetupComplete) {
@@ -317,77 +337,125 @@ const handleGrossIncomeChange = (value) => {
       <div className="budget-setup">
         <h2>Budget Setup</h2>
 
+        {/* Description */}
+        <div className="description">
+          <p>Welcome to the Budget Setup page! Here, you can create a budget by selecting a template or creating a custom one. You can set your total budget, allocate funds to different categories, and specify the time period for your budget.</p>
+        </div>
+
         {/* Income Type Toggle */}
         <div className="income-type-toggle">
-          <label>
-            <input
-              type="radio"
-              value="one-time"
-              checked={incomeType === 'one-time'}
-              onChange={() => handleIncomeTypeChange('one-time')}
-            />
-            One-Time Budget
-          </label>
-          <label>
-            <input
-              type="radio"
-              value="gross-income"
-              checked={incomeType === 'gross-income'}
-              onChange={() => handleIncomeTypeChange('gross-income')}
-            />
-            Expected Gross Income
-          </label>
+          <div className="income-option">
+            <label>
+              <input
+                type="radio"
+                value="one-time"
+                checked={incomeType === 'one-time'}
+                onChange={() => handleIncomeTypeChange('one-time')}
+              />
+              One-Time Budget
+            </label>
+            <p className="option-description">
+              Use this if you have a fixed amount of money to budget (e.g., a savings fund or a one-time payment).
+            </p>
+          </div>
+          <div className="income-option">
+            <label>
+              <input
+                type="radio"
+                value="gross-income"
+                checked={incomeType === 'gross-income'}
+                onChange={() => handleIncomeTypeChange('gross-income')}
+              />
+              Expected Gross Income
+            </label>
+            <p className="option-description">
+              Use this if you want to budget based on your regular income (e.g., salary or monthly earnings).
+            </p>
+          </div>
         </div>
 
         {/* One-Time Budget Input */}
         {incomeType === 'one-time' && (
-        <div className="budget-total">
-          <label>
-            Total Budget:
-            <input
-              type="number"
-              value={totalBudget || ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                setTotalBudget(value === '' ? '' : parseFloat(value) / exchangeRate);
-              }}
-              placeholder="Enter total budget"
-              min="0"
-            />
-          </label>
-          <p>
-            Remaining Budget: {currencySymbols[currency]}{(remainingBudget * exchangeRate).toFixed(2)}
-          </p>
-        </div>
-      )}
+          <div className="budget-total">
+            <label>
+              Total Budget:
+              <input
+                type="number"
+                value={totalBudget || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setTotalBudget(value === '' ? '' : parseFloat(value) / exchangeRate);
+                }}
+                placeholder="Enter total budget"
+                min="0"
+              />
+              <span>{currencySymbols[currency]}</span>
+            </label>
+            <p>
+              Remaining Budget: {currencySymbols[currency]}{(remainingBudget * exchangeRate).toFixed(2)}
+            </p>
+          </div>
+        )}
 
         {/* Gross Income Form */}
         {incomeType === 'gross-income' && (
           <div className="gross-income-form">
-            <label>
-              Gross Income:
-              <input
-                type="number"
-                value={incomeData.grossIncome}
-                onChange={(e) => handleGrossIncomeChange(e.target.value)}
-                placeholder="Enter gross income"
-                min="0"
-              />
-            </label>
-            <label>
-              Income Interval:
-              <select
-                value={incomeData.incomeInterval}
-                onChange={(e) => setIncomeData({ ...incomeData, incomeInterval: e.target.value })}
-              >
-                <option value="weekly">Weekly</option>
-                <option value="bi-weekly">Bi-Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="annually">Annually</option>
-              </select>
-            </label>
+            <div className="gross-income-input">
+              <label>
+                Gross Income:
+                <input
+                  type="number"
+                  value={incomeData.grossIncome}
+                  onChange={(e) => handleGrossIncomeChange(e.target.value)}
+                  placeholder="Enter gross income"
+                  min="0"
+                />
+                <span>{currencySymbols[currency]}</span>
+              </label>
+            </div>
+            <div className="income-interval-input">
+              <label>
+                Income Interval:
+                <select
+                  value={incomeData.incomeInterval}
+                  onChange={(e) => setIncomeData({ ...incomeData, incomeInterval: e.target.value })}
+                >
+                  <option value="weekly">Weekly</option>
+                  <option value="bi-weekly">Bi-Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="annually">Annually</option>
+                </select>
+              </label>
+            </div>
           </div>
         )}
+
+        {/* Savings Goal Section */}
+        <div className="savings-goal-section">
+          <label>
+            <input
+              type="checkbox"
+              checked={savingsGoalEnabled}
+              onChange={(e) => setSavingsGoalEnabled(e.target.checked)}
+            />
+            Enable Savings Goal
+          </label>
+          {savingsGoalEnabled && (
+            <div className="savings-goal-input">
+              <label>
+                Savings Goal Amount:
+                <input
+                  type="number"
+                  value={savingsGoalAmount}
+                  onChange={(e) => setSavingsGoalAmount(e.target.value)}
+                  placeholder="Enter savings goal"
+                  min="0"
+                />
+                <span>{currencySymbols[currency]}</span>
+              </label>
+            </div>
+          )}
+        </div>
 
         {/* Template Selection */}
         <div className="template-list">
@@ -453,146 +521,167 @@ const handleGrossIncomeChange = (value) => {
               </div>
             )}
             <ul>
-            {categories
-              .filter((category) => category !== 'Savings') // Exclude savings from the main list
-              .map((category) => (
-                <li key={category}>
-                  <div className="category-header">
-                    <span>{category}</span>
+              {categories
+                .filter((category) => category !== 'Savings') // Exclude savings from the main list
+                .map((category) => (
+                  <li key={category}>
+                    <div className="category-header">
+                      <span>{category}</span>
+                      <div className="input-container">
+                        <input
+                          type="number"
+                          value={
+                            categorySettings[category].useDollarAmounts
+                              ? dollarAmounts[category] === null || dollarAmounts[category] === undefined
+                                ? ''
+                                : dollarAmounts[category] * exchangeRate
+                              : ratios[category] || ''
+                          }
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (categorySettings[category].useDollarAmounts) {
+                              handleDollarAmountChange(
+                                category,
+                                value === '' ? null : parseFloat(value) / exchangeRate
+                              );
+                            } else {
+                              handleRatioChange(category, value);
+                            }
+                          }}
+                          placeholder={
+                            categorySettings[category].useDollarAmounts ? 'e.g., 50' : 'e.g., 20'
+                          }
+                          min="0"
+                          max={categorySettings[category].useDollarAmounts ? undefined : 100}
+                        />
+                        <span className="input-symbol">
+                          {categorySettings[category].useDollarAmounts ? currencySymbols[currency] : '%'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="category-buttons">
+                      <button onClick={() => handleRemoveCategory(category)}>Remove</button>
+                      <button
+                        onClick={() =>
+                          handleCategorySettingChange(category, 'useDollarAmounts', !categorySettings[category].useDollarAmounts)
+                        }
+                      >
+                        {categorySettings[category].useDollarAmounts ? 'Use %' : 'Use $'}
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleCategorySettingChange(category, 'scheduleType', categorySettings[category].scheduleType === 'none' ? 'recurring' : 'none')
+                        }
+                      >
+                        {categorySettings[category].scheduleType === 'none' ? 'Add Schedule' : 'Remove Schedule'}
+                      </button>
+                    </div>
+                    {categorySettings[category].scheduleType === 'recurring' && (
+                      <div className="schedule-options">
+                        {/* One-Time Payment Section */}
+                        <div className="one-time-payment">
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={categorySettings[category].isOneTime}
+                              onChange={(e) =>
+                                handleCategorySettingChange(category, 'isOneTime', e.target.checked)
+                              }
+                            />
+                            <span>One-Time Payment</span>
+                          </label>
+                          {categorySettings[category].isOneTime && (
+                            <div className="one-time-date">
+                              <DatePicker
+                                selected={categorySettings[category].oneTimeDate}
+                                onChange={(date) =>
+                                  handleCategorySettingChange(category, 'oneTimeDate', date)
+                                }
+                                dateFormat="MM/dd/yyyy"
+                                minDate={startDate}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Frequency and Day Section */}
+                        {!categorySettings[category].isOneTime && (
+                          <div className="recurring-options">
+                            <div className="frequency-section">
+                              <label>
+                                Frequency:
+                                <select
+                                  value={categorySettings[category].frequency}
+                                  onChange={(e) =>
+                                    handleCategorySettingChange(category, 'frequency', e.target.value)
+                                  }
+                                >
+                                  <option value="weekly">Weekly</option>
+                                  <option value="bi-weekly">Bi-Weekly</option>
+                                  <option value="monthly">Monthly</option>
+                                  <option value="custom">Custom Interval</option>
+                                </select>
+                              </label>
+                            </div>
+
+                            {categorySettings[category].frequency === 'custom' && (
+                              <div className="interval-section">
+                                <label>
+                                  Interval:
+                                  <input
+                                    type="number"
+                                    value={categorySettings[category].interval || ''}
+                                    onChange={(e) =>
+                                      handleCategorySettingChange(category, 'interval', parseInt(e.target.value, 10))
+                                    }
+                                    placeholder="e.g., 2 (for every 2 weeks)"
+                                    min="1"
+                                  />
+                                </label>
+                              </div>
+                            )}
+
+                            <div className="day-section">
+                              <label>
+                                Day:
+                                <select
+                                  value={categorySettings[category].selectedDay}
+                                  onChange={(e) =>
+                                    handleCategorySettingChange(category, 'selectedDay', e.target.value)
+                                  }
+                                >
+                                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                                    <option key={day} value={day}>
+                                      {day}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              <li>
+                <div className="category-header">
+                  <span>Savings</span>
+                  <div className="input-container">
                     <input
                       type="number"
-                      value={
-                        categorySettings[category].useDollarAmounts
-                          ? dollarAmounts[category] === null || dollarAmounts[category] === undefined
-                            ? ''
-                            : dollarAmounts[category] * exchangeRate
-                          : ratios[category] || ''
-                      }
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (categorySettings[category].useDollarAmounts) {
-                          handleDollarAmountChange(
-                            category,
-                            value === '' ? null : parseFloat(value) / exchangeRate
-                          );
-                        } else {
-                          handleRatioChange(category, value);
-                        }
-                      }}
-                      placeholder={
-                        categorySettings[category].useDollarAmounts ? 'e.g., 50' : 'e.g., 20'
-                      }
-                      min="0"
-                      max={categorySettings[category].useDollarAmounts ? undefined : 100}
+                      value={remainingBudget.toFixed(2)}
+                      readOnly
                     />
+                    <span className="input-symbol">{currencySymbols[currency]}</span>
                   </div>
-                  <div className="category-buttons">
-                    <button onClick={() => handleRemoveCategory(category)}>Remove</button>
-                    <button
-                      onClick={() =>
-                        handleCategorySettingChange(category, 'useDollarAmounts', !categorySettings[category].useDollarAmounts)
-                      }
-                    >
-                      {categorySettings[category].useDollarAmounts ? 'Use %' : 'Use $'}
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleCategorySettingChange(category, 'scheduleType', categorySettings[category].scheduleType === 'none' ? 'recurring' : 'none')
-                      }
-                    >
-                      {categorySettings[category].scheduleType === 'none' ? 'Add Schedule' : 'Remove Schedule'}
-                    </button>
-                  </div>
-                  {categorySettings[category].scheduleType === 'recurring' && (
-                    <div className="schedule-options">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={categorySettings[category].isOneTime}
-                          onChange={(e) =>
-                            handleCategorySettingChange(category, 'isOneTime', e.target.checked)
-                          }
-                        />
-                        One-Time Payment
-                      </label>
-
-                      {categorySettings[category].isOneTime ? (
-                        <div className="one-time-date">
-                          <label>
-                            Date:
-                            <DatePicker
-                              selected={categorySettings[category].oneTimeDate}
-                              onChange={(date) =>
-                                handleCategorySettingChange(category, 'oneTimeDate', date)
-                              }
-                              dateFormat="MM/dd/yyyy"
-                              minDate={startDate}
-                            />
-                          </label>
-                        </div>
-                      ) : (
-                        <div className="recurring-options">
-                          <label>
-                            Frequency:
-                            <select
-                              value={categorySettings[category].frequency}
-                              onChange={(e) =>
-                                handleCategorySettingChange(category, 'frequency', e.target.value)
-                              }
-                            >
-                              <option value="weekly">Weekly</option>
-                              <option value="bi-weekly">Bi-Weekly</option>
-                              <option value="monthly">Monthly</option>
-                              <option value="custom">Custom Interval</option>
-                            </select>
-                          </label>
-
-                          {categorySettings[category].frequency === 'custom' && (
-                            <label>
-                              Interval:
-                              <input
-                                type="number"
-                                value={categorySettings[category].interval || ''}
-                                onChange={(e) =>
-                                  handleCategorySettingChange(category, 'interval', parseInt(e.target.value, 10))
-                                }
-                                placeholder="e.g., 2 (for every 2 weeks)"
-                                min="1"
-                              />
-                            </label>
-                          )}
-
-                          <label>
-                            Day:
-                            <select
-                              value={categorySettings[category].selectedDay}
-                              onChange={(e) =>
-                                handleCategorySettingChange(category, 'selectedDay', e.target.value)
-                              }
-                            >
-                              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                                <option key={day} value={day}>
-                                  {day}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </li>
-              ))}
-              <li>
-              <div className="category-header">
-                <span>Savings</span>
-                <input
-                  type="number"
-                  value={remainingBudget.toFixed(2)}
-                  readOnly // Make the savings row read-only
-                />
-              </div>
-            </li>
+                </div>
+                {savingsGoalEnabled && (
+                  <p className="savings-goal-info">
+                    Goal: {currencySymbols[currency]}{savingsGoalAmount} (Remaining: {currencySymbols[currency]}{remainingBudget.toFixed(2)})
+                  </p>
+                )}
+              </li>
             </ul>
             <div className="add-category">
               <input
@@ -608,6 +697,27 @@ const handleGrossIncomeChange = (value) => {
             </button>
           </div>
         )}
+
+        {/* Explanation Drawer */}
+        <div className={`explanation-drawer ${isDrawerOpen ? 'open' : ''}`}>
+          <button className="drawer-toggle" onClick={toggleDrawer}>
+            {isDrawerOpen ? '›' : '‹'}
+          </button>
+          <div className="drawer-content">
+			        <h4>How to Use This Page</h4>
+			        <p><strong>One-Time Budget:</strong> Use this if you have a fixed amount of money to budget. Can also be used if pay isn't clearly defined like hourly pay, and can be adjusted through supplemental income in the daily budgets</p>
+			        <p><strong>Expected Gross Income:</strong> Use this if you want to budget based on your regular income.</p>
+			        <p><strong>Income Interval:</strong> If you are receiving a regular income, how often is it received.</p>
+              <p><strong>Savings Goal:</strong> If enabled, sets a goal date at the end of your budget duration (Time Period) for you to track your savings progress.</p>
+			        <p><strong>Remaining Budget:</strong> If you are one a One-Time Budget, shows how much of the budget is yet to be allocated</p>
+			        <p><strong>Templates:</strong> Travel Budget & Daily Expense plans have preset categories for convenience. However, you can have a more flexible plan by adding categories to the Custom plan</p>
+			        <p><strong>Categories:</strong> Add or remove categories to customize your budget.</p>
+			        <p><strong>Use $:</strong> Switches the default method of entering budget allocation of a category. This app uses % by default.</p>
+			        <p><strong>Add Schedule:</strong> Allows for categories to be paid for either one time on a specific date or on a recurring basis</p>
+			        <p><strong>Time Period:</strong> Set the duration for your budget (e.g., weekly, monthly).</p>
+			        <p><strong>Savings:</strong> The remainder calculated after the budget is allocated to other categories</p>
+          </div>
+        </div>
       </div>
     );
   }

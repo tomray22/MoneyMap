@@ -4,13 +4,60 @@
   background-color: #f9f9f9;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  max-width: 600px;
+  max-width: 800px;
   margin: 20px auto;
 }
 
 .budget-setup h2 {
   text-align: center;
   color: #333;
+  margin-bottom: 20px;
+}
+
+.description {
+  margin-bottom: 20px;
+  color: #555;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.income-type-toggle {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.income-option {
+  flex: 1;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fff;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.income-option:hover {
+  background-color: #f9f9f9;
+  border-color: #007bff;
+}
+
+.income-option label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.income-option input {
+  margin-right: 10px;
+}
+
+.option-description {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
 }
 
 .template-list {
@@ -40,13 +87,14 @@
 
 .ratio-form {
   background-color: #fff;
-  padding: 15px;
+  padding: 20px;
   border: 1px solid #ddd;
   border-radius: 4px;
+  margin-top: 20px;
 }
 
 .ratio-form h3 {
-  margin-bottom: 10px;
+  margin-bottom: 15px;
   color: #444;
 }
 
@@ -72,42 +120,43 @@ ul {
 }
 
 ul li {
-  margin-bottom: 20px; /* Increased margin for better spacing */
+  margin-bottom: 20px;
 }
 
 .category-header {
   display: flex;
   align-items: center;
-  margin-bottom: 10px; /* Space between input and buttons */
+  margin-bottom: 10px;
 }
 
 .category-header span {
-  margin-right: 10px; /* Space between label and input */
+  margin-right: 10px;
+  font-weight: bold;
 }
 
-.category-header input {
-  flex: 1; /* Make input field longer */
+.input-container {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.input-container input {
+  flex: 1;
   padding: 5px;
   border: 1px solid #ccc;
   border-radius: 4px;
-  width: 100%; /* Ensure it takes up available space */
+  margin-right: 5px;
 }
 
-/* Remove arrows from number input */
-.category-header input[type="number"] {
-  -moz-appearance: textfield; /* Firefox */
-}
-
-.category-header input[type="number"]::-webkit-outer-spin-button,
-.category-header input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none; /* Chrome, Safari */
-  margin: 0;
+.input-symbol {
+  font-weight: bold;
+  color: #555;
 }
 
 .category-buttons {
   display: flex;
-  justify-content: center; /* Center buttons horizontally */
-  gap: 10px; /* Space between buttons */
+  justify-content: center;
+  gap: 10px;
 }
 
 .category-buttons button {
@@ -162,10 +211,196 @@ button:hover {
   position: absolute;
   top: 100%;
   left: 0;
-  z-index: 1000; /* Ensure it appears above other elements */
+  z-index: 1000;
   background-color: white;
   border: 1px solid #ccc;
   border-radius: 4px;
   padding: 5px;
-  width: 200px; /* Adjust width as needed */
+  width: 200px;
+}
+
+.explanation-drawer {
+  position: fixed;
+  top: 100px; /* Adjust this value to move it lower */
+  left: -300px; /* Changed from right to left */
+  width: 300px;
+  height: 100%;
+  background-color: #fff;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); /* Adjusted shadow direction */
+  transition: left 0.3s ease; /* Changed from right to left */
+  z-index: 1000;
+}
+
+.explanation-drawer.open {
+  left: 0; /* Changed from right to left */
+}
+
+.drawer-toggle {
+  position: absolute;
+  right: -40px; /* Changed from left to right */
+  top: 20px; /* Adjust this value to align with your design */
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  padding: 10px;
+  border-radius: 0 4px 4px 0; /* Adjusted border radius */
+  cursor: pointer;
+  z-index: 1001;
+}
+
+.drawer-content {
+  padding: 20px;
+}
+
+.drawer-content h4 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.drawer-content p {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 10px;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .explanation-drawer {
+    width: 250px;
+  }
+
+  .drawer-toggle {
+    left: -40px;
+    padding: 8px;
+  }
+}
+
+/* Gross Income Form */
+.gross-income-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.gross-income-input,
+.income-interval-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gross-income-input input,
+.income-interval-input select {
+  flex: 1;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Savings Goal Section */
+.savings-goal-section {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fff;
+}
+
+.savings-goal-section label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  white-space: nowrap; /* Prevent text from breaking into multiple lines */
+}
+
+.savings-goal-section input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+  width: 16px; /* Set a fixed width for the checkbox */
+  height: 16px; /* Set a fixed height for the checkbox */
+}
+
+.savings-goal-input {
+  margin-top: 10px;
+}
+
+.savings-goal-input label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.savings-goal-input input {
+  flex: 1;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Schedule Options Container */
+.schedule-options {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+/* One-Time Payment Section */
+.one-time-payment {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.one-time-payment label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap; /* Prevent text from breaking */
+  cursor: pointer;
+}
+
+.one-time-payment input[type="checkbox"] {
+  margin: 0;
+  width: 16px; /* Set a fixed width for the checkbox */
+  height: 16px; /* Set a fixed height for the checkbox */
+  cursor: pointer;
+}
+
+.one-time-date {
+  margin-left: 20px; /* Add some spacing between the checkbox and date picker */
+}
+
+/* Frequency and Day Section */
+.recurring-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.frequency-section,
+.day-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.frequency-section label,
+.day-section label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap; /* Prevent text from breaking */
+}
+
+.frequency-section select,
+.day-section select {
+  flex: 1;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
