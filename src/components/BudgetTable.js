@@ -277,7 +277,16 @@ const BudgetTable = ({ currency, exchangeRate }) => {
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={index}>
+            <tr
+              key={index}
+              className={
+                row.actual < row.expected
+                  ? 'saved-more' // Green for saving more than expected
+                  : row.actual > row.expected
+                  ? 'overspent' // Red for overspending
+                  : ''
+              }
+            >
               <td>{row.label}</td>
               <td>{currencySymbols[currency]}{row.expected.toFixed(2)}</td>
               <td>
@@ -313,7 +322,7 @@ const BudgetTable = ({ currency, exchangeRate }) => {
         </thead>
         <tbody>
           {supplementalIncomes.map((income, index) => (
-            <tr key={`supplemental-${index}`}>
+            <tr key={`supplemental-${index}`} className="supplemental-income-row">
               <td>
                 <input
                   type="text"
@@ -338,7 +347,7 @@ const BudgetTable = ({ currency, exchangeRate }) => {
             </tr>
           ))}
           {unexpectedExpenses.map((expense, index) => (
-            <tr key={`unexpected-${index}`}>
+            <tr key={`unexpected-${index}`} className="unexpected-expense-row">
               <td>
                 <input
                   type="text"
@@ -386,7 +395,13 @@ const BudgetTable = ({ currency, exchangeRate }) => {
           </tr>
         </thead>
         <tbody>
-          <tr>
+          <tr className={
+              actualSavings > dailyBudgetedSavings
+                ? 'saved-more' // Green for saving more than expected
+                : actualSavings < dailyBudgetedSavings
+                ? 'overspent' // Red for saving less than expected
+                : ''
+            }>
             <td>Savings</td>
             <td>{currencySymbols[currency]}{dailyBudgetedSavings.toFixed(2)}</td>
             <td>{currencySymbols[currency]}{actualSavings.toFixed(2)}</td>

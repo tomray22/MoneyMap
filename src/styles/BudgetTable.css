@@ -16,16 +16,17 @@
 }
 
 .budget-table th {
-  background-color: #f2f2f2;
+  background-color: #f5f5f5; /* Light gray background */
+  color: #333; /* Dark gray text */
   font-weight: bold;
 }
 
 .budget-table tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: #f9f9f9; /* Zebra striping for even rows */
 }
 
 .budget-table tr:hover {
-  background-color: #f1f1f1;
+  background-color: #e0e0e0; /* Slightly darker gray on hover */
 }
 
 /* Input Field Styles */
@@ -53,7 +54,7 @@
 
 .export-buttons button {
   padding: 8px 16px;
-  background-color: #4CAF50;
+  background-color: #4CAF50; /* Green button */
   color: white;
   border: none;
   border-radius: 4px;
@@ -63,16 +64,16 @@
 }
 
 .export-buttons button:hover {
-  background-color: #45a049;
+  background-color: #45a049; /* Darker green on hover */
 }
 
 .export-buttons button:active {
-  background-color: #3d8b40;
+  background-color: #3d8b40; /* Even darker green on click */
 }
 
 /* Error Message Styles */
 .error-message {
-  color: #d9534f;
+  color: #d9534f; /* Red for error messages */
   font-weight: bold;
   margin-top: 1em;
 }
@@ -136,15 +137,17 @@
 }
 
 .income-expenses-table th {
-  background-color: #f2f2f2;
+  background-color: #f5f5f5; /* Light gray background */
+  color: #333; /* Dark gray text */
+  font-weight: bold;
 }
 
 .income-expenses-table tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: #f9f9f9; /* Zebra striping for even rows */
 }
 
 .income-expenses-table tr:hover {
-  background-color: #f1f1f1;
+  background-color: #e0e0e0; /* Slightly darker gray on hover */
 }
 
 /* Savings Table */
@@ -162,13 +165,35 @@
 }
 
 .savings-table th {
-  background-color: #f2f2f2;
+  background-color: #f5f5f5; /* Light gray background */
+  color: #333; /* Dark gray text */
+  font-weight: bold;
 }
 
 .savings-table tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: #f9f9f9; /* Zebra striping for even rows */
 }
 
 .savings-table tr:hover {
-  background-color: #f1f1f1;
+  background-color: #e0e0e0; /* Slightly darker gray on hover */
+}
+
+/* Green highlight for saving more than expected */
+.saved-more {
+  background-color: #e6ffe6; /* Light green background */
+}
+
+/* Red highlight for overspending */
+.overspent {
+  background-color: #ffe6e6; /* Light red background */
+}
+
+/* Supplemental Income Row */
+.supplemental-income-row {
+  background-color: #e6ffe6; /* Light green for supplemental income */
+}
+
+/* Unexpected Expense Row */
+.unexpected-expense-row {
+  background-color: #ffe6e6; /* Light red for unexpected expenses */
 }

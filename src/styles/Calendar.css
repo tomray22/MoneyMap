@@ -125,3 +125,28 @@
 .back-button:hover {
   background-color: #c82333;
 }
+
+/* Highlight Savings Goal Date */
+.budget-goal-day {
+  background-color: #e6f7ff; /* Light blue background */
+  border: 2px solid #007bff; /* Blue border */
+}
+
+/* Green highlight for saving more than expected */
+.saved-more {
+  background-color: #e6ffe6; /* Light green background */
+  border: 2px solid #28a745; /* Green border */
+}
+
+/* Red highlight for overspending */
+.overspent {
+  background-color: #ffe6e6; /* Light red background */
+  border: 2px solid #dc3545; /* Red border */
+}
+
+/* Ensure text is visible on highlighted days */
+.react-calendar__tile.saved-more,
+.react-calendar__tile.overspent,
+.react-calendar__tile.budget-goal-day {
+  color: #333; /* Dark text for better readability */
+}

@@ -1,82 +1,111 @@
 /* SummaryPage.css */
 
+/* General Styles */
 .summary-page {
-    padding: 20px;
-    font-family: Arial, sans-serif;
-    max-width: 800px;
-    margin: 0 auto;
-    text-align: center;
-  }
-  
-  .date-range-display {
-    margin-bottom: 20px;
-    font-size: 18px;
-    color: #555;
-  }
-  
-  .totals-display {
-    background-color: #f9f9f9;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
-  }
-  
-  .totals-display h2 {
-    margin-top: 0;
-    font-size: 24px;
-    color: #333;
-  }
-  
-  .totals-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    margin-top: 20px;
-  }
-  
-  .totals-item {
-    background-color: #fff;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-  
-  .totals-label {
-    font-size: 16px;
-    color: #777;
-    display: block;
-    margin-bottom: 10px;
-  }
-  
-  .totals-value {
-    font-size: 20px;
-    font-weight: bold;
-    color: #333;
-  }
-  
-  .export-buttons {
-    margin-top: 20px;
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-  }
-  
-  .export-buttons button {
-    padding: 10px 20px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.3s ease;
-  }
-  
-  .export-buttons button:hover {
-    background-color: #45a049;
-  }
-  
-  .export-buttons button:active {
-    background-color: #3d8b40;
-  }
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Date Range Display */
+.date-range-display {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.date-range-display p {
+  font-size: 1.2rem;
+  color: #666;
+}
+
+/* Totals Display */
+.totals-display {
+  margin-bottom: 40px;
+}
+
+.totals-display h2 {
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+.totals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.totals-item {
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.totals-label {
+  font-size: 1.2rem;
+  color: #333;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.totals-value {
+  font-size: 1.5rem;
+  color: #2196F3; /* Soft blue */
+  font-weight: bold;
+}
+
+/* Savings Goal Progress */
+.savings-goal-progress {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.savings-goal-progress h3 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.progress-bar {
+  background-color: #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+  height: 20px;
+  margin: 0 auto 10px;
+  max-width: 500px;
+}
+
+.progress-fill {
+  background: linear-gradient(90deg, #4CAF50, #81C784);
+  height: 100%;
+  transition: width 1s ease; /* Smooth transition for animation */
+}
+
+.savings-goal-progress p {
+  font-size: 1.2rem;
+  color: #666;
+}
+
+/* Export Buttons */
+.export-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.export-buttons button {
+  padding: 10px 20px;
+  background-color: #2196F3; /* Soft blue */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.export-buttons button:hover {
+  background-color: #1976D2; /* Darker blue on hover */
+}

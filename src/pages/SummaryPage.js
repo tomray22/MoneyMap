@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // Add useRef
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -23,7 +23,7 @@ const currencySymbols = {
   NZD: 'NZ$',
 };
 
-const SummaryPage = ({ currency, exchangeRate }) => {
+const SummaryView = ({ currency, exchangeRate }) => {
   const { budgetData } = useBudget();
   const location = useLocation();
   const navigate = useNavigate();
@@ -36,6 +36,8 @@ const SummaryPage = ({ currency, exchangeRate }) => {
 
   const [startDate, setStartDate] = useState(new Date(initialStartDate));
   const [endDate, setEndDate] = useState(new Date(initialEndDate));
+  const [savingsProgress, setSavingsProgress] = useState(0); // Track progress for animation
+  const progressBarRef = useRef(null); // Ref for the progress bar
 
   // Calculate accumulated totals for the selected date range
   const calculateTotals = () => {
@@ -115,6 +117,35 @@ const SummaryPage = ({ currency, exchangeRate }) => {
 
   const totals = calculateTotals();
 
+  // Calculate savings goal progress
+  const savingsGoal = budgetData?.budgetGoals?.savingsGoal || 0;
+  const newSavingsProgress = (totals.savings / savingsGoal) * 100;
+
+  // Animate the progress bar
+  useEffect(() => {
+    if (progressBarRef.current) {
+      progressBarRef.current.style.width = `${savingsProgress}%`;
+    }
+  }, [savingsProgress]);
+
+  // Update savings progress with animation
+  useEffect(() => {
+    const animationDuration = 1000; // 1 second
+    const startTime = performance.now();
+
+    const animate = (currentTime) => {
+      const elapsedTime = currentTime - startTime;
+      const progress = Math.min(elapsedTime / animationDuration, 1); // Progress from 0 to 1
+      setSavingsProgress(progress * newSavingsProgress);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate); // Continue animation
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [newSavingsProgress]);
+
   // Export to CSV
   const exportToCSV = () => {
     const data = [
@@ -187,6 +218,19 @@ const SummaryPage = ({ currency, exchangeRate }) => {
           </div>
         </div>
       </div>
+      <div className="savings-goal-progress">
+        <h3>Savings Goal Progress</h3>
+        <div className="progress-bar">
+          <div
+            ref={progressBarRef}
+            className="progress-fill"
+            style={{ width: `${savingsProgress}%` }}
+          ></div>
+        </div>
+        <p>
+          {currencySymbols[currency]}{(totals.savings * exchangeRate).toFixed(2)} / {currencySymbols[currency]}{(savingsGoal * exchangeRate).toFixed(2)}
+        </p>
+      </div>
       <div className="export-buttons">
         <button onClick={exportToCSV}>Export to CSV</button>
         <button onClick={exportToPDF}>Export to PDF</button>
@@ -196,4 +240,4 @@ const SummaryPage = ({ currency, exchangeRate }) => {
   );
 };
 
-export default SummaryPage;
+export default SummaryView;

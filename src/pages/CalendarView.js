@@ -144,110 +144,124 @@ const CalendarView = ({ currency, exchangeRate }) => {
     return null;
   };
 
-  // Highlight the budget goal day (end of the time period)
+  // Highlight the budget goal day and add green/red highlights
   const tileClassName = ({ date }) => {
     const dateKey = date.toDateString();
     const endDateKey = new Date(budgetData.endDate).toDateString();
-    return dateKey === endDateKey ? 'budget-goal-day' : null;
+    const dayData = dailyBudgets[dateKey];
+
+    let className = '';
+    if (dateKey === endDateKey) {
+      className += ' budget-goal-day '; // Highlight savings goal date
+    }
+    if (dayData) {
+      const totalDifference = dayData.categories.reduce((sum, row) => sum + row.difference, 0);
+      if (totalDifference > 0) {
+        className += ' saved-more '; // Green for saving more than expected
+      } else if (totalDifference < 0) {
+        className += ' overspent '; // Red for overspending
+      }
+    }
+    return className.trim();
   };
 
- // Export data for the selected time range
-const exportTimeRangeData = (format) => {
-  if (!startDate || !endDate) {
-    alert('Please select a valid date range.');
-    return;
-  }
-
-  const selectedData = [];
-  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const dateKey = d.toDateString();
-    if (dailyBudgets[dateKey]) {
-      selectedData.push({
-        date: dateKey,
-        categories: dailyBudgets[dateKey].categories.map((row) => ({
-          ...row,
-          expected: row.expected.toFixed(2),
-          actual: row.actual.toFixed(2),
-          difference: row.difference.toFixed(2),
-        })),
-        savings: dailyBudgets[dateKey].savings || 0,
-        supplementalIncome: dailyBudgets[dateKey].supplementalIncome || 0,
-        unexpectedExpenses: dailyBudgets[dateKey].unexpectedExpenses || 0,
-      });
+  // Export data for the selected time range
+  const exportTimeRangeData = (format) => {
+    if (!startDate || !endDate) {
+      alert('Please select a valid date range.');
+      return;
     }
-  }
 
-  if (selectedData.length === 0) {
-    alert('No data available for the selected date range.');
-    return;
-  }
+    const selectedData = [];
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateKey = d.toDateString();
+      if (dailyBudgets[dateKey]) {
+        selectedData.push({
+          date: dateKey,
+          categories: dailyBudgets[dateKey].categories.map((row) => ({
+            ...row,
+            expected: row.expected.toFixed(2),
+            actual: row.actual.toFixed(2),
+            difference: row.difference.toFixed(2),
+          })),
+          savings: dailyBudgets[dateKey].savings || 0,
+          supplementalIncome: dailyBudgets[dateKey].supplementalIncome || 0,
+          unexpectedExpenses: dailyBudgets[dateKey].unexpectedExpenses || 0,
+        });
+      }
+    }
 
-  if (format === 'excel') {
-    const workbook = XLSX.utils.book_new();
-    selectedData.forEach((day) => {
-      const worksheet = XLSX.utils.json_to_sheet([
-        ...day.categories,
-        {
-          Label: 'Savings',
-          Budgeted: `${currencySymbols[currency]}${day.savings.toFixed(2)}`,
-          Actual: `${currencySymbols[currency]}${day.savings.toFixed(2)}`,
-          Difference: `${currencySymbols[currency]}${0}`,
-        },
-        {
-          Label: 'Supplemental Income',
-          Amount: `${currencySymbols[currency]}${day.supplementalIncome.toFixed(2)}`,
-        },
-        {
-          Label: 'Unexpected Expenses',
-          Amount: `${currencySymbols[currency]}${day.unexpectedExpenses.toFixed(2)}`,
-        },
-      ]);
-      XLSX.utils.book_append_sheet(workbook, worksheet, day.date);
-    });
-    XLSX.writeFile(workbook, `Budget_${startDate.toDateString()}_to_${endDate.toDateString()}.xlsx`);
-  } else if (format === 'pdf') {
-    const doc = new jsPDF();
-    selectedData.forEach((day, index) => {
-      if (index > 0) doc.addPage(); // Add a new page for each day
-      doc.text(`Budget for ${day.date}`, 10, 10);
-      autoTable(doc, {
-        head: [['Label', 'Budgeted', 'Actual', 'Difference']],
-        body: [
-          ...day.categories.map((row) => [
-            row.label,
-            `${currencySymbols[currency]}${row.expected}`,
-            `${currencySymbols[currency]}${row.actual}`,
-            `${currencySymbols[currency]}${row.difference}`,
-          ]),
-          [
-            'Savings',
-            `${currencySymbols[currency]}${day.savings.toFixed(2)}`,
-            `${currencySymbols[currency]}${day.savings.toFixed(2)}`,
-            `${currencySymbols[currency]}${0}`,
-          ],
-        ],
+    if (selectedData.length === 0) {
+      alert('No data available for the selected date range.');
+      return;
+    }
+
+    if (format === 'excel') {
+      const workbook = XLSX.utils.book_new();
+      selectedData.forEach((day) => {
+        const worksheet = XLSX.utils.json_to_sheet([
+          ...day.categories,
+          {
+            Label: 'Savings',
+            Budgeted: `${currencySymbols[currency]}${day.savings.toFixed(2)}`,
+            Actual: `${currencySymbols[currency]}${day.savings.toFixed(2)}`,
+            Difference: `${currencySymbols[currency]}${0}`,
+          },
+          {
+            Label: 'Supplemental Income',
+            Amount: `${currencySymbols[currency]}${day.supplementalIncome.toFixed(2)}`,
+          },
+          {
+            Label: 'Unexpected Expenses',
+            Amount: `${currencySymbols[currency]}${day.unexpectedExpenses.toFixed(2)}`,
+          },
+        ]);
+        XLSX.utils.book_append_sheet(workbook, worksheet, day.date);
       });
+      XLSX.writeFile(workbook, `Budget_${startDate.toDateString()}_to_${endDate.toDateString()}.xlsx`);
+    } else if (format === 'pdf') {
+      const doc = new jsPDF();
+      selectedData.forEach((day, index) => {
+        if (index > 0) doc.addPage(); // Add a new page for each day
+        doc.text(`Budget for ${day.date}`, 10, 10);
+        autoTable(doc, {
+          head: [['Label', 'Budgeted', 'Actual', 'Difference']],
+          body: [
+            ...day.categories.map((row) => [
+              row.label,
+              `${currencySymbols[currency]}${row.expected}`,
+              `${currencySymbols[currency]}${row.actual}`,
+              `${currencySymbols[currency]}${row.difference}`,
+            ]),
+            [
+              'Savings',
+              `${currencySymbols[currency]}${day.savings.toFixed(2)}`,
+              `${currencySymbols[currency]}${day.savings.toFixed(2)}`,
+              `${currencySymbols[currency]}${0}`,
+            ],
+          ],
+        });
 
-      // Add Supplemental Income and Unexpected Expenses
-      doc.addPage();
-      doc.text('Supplemental Income and Unexpected Expenses', 10, 10);
-      autoTable(doc, {
-        head: [['Label', 'Amount']],
-        body: [
-          [
-            'Supplemental Income',
-            `${currencySymbols[currency]}${day.supplementalIncome.toFixed(2)}`,
+        // Add Supplemental Income and Unexpected Expenses
+        doc.addPage();
+        doc.text('Supplemental Income and Unexpected Expenses', 10, 10);
+        autoTable(doc, {
+          head: [['Label', 'Amount']],
+          body: [
+            [
+              'Supplemental Income',
+              `${currencySymbols[currency]}${day.supplementalIncome.toFixed(2)}`,
+            ],
+            [
+              'Unexpected Expenses',
+              `${currencySymbols[currency]}${day.unexpectedExpenses.toFixed(2)}`,
+            ],
           ],
-          [
-            'Unexpected Expenses',
-            `${currencySymbols[currency]}${day.unexpectedExpenses.toFixed(2)}`,
-          ],
-        ],
+        });
       });
-    });
-    doc.save(`Budget_${startDate.toDateString()}_to_${endDate.toDateString()}.pdf`);
-  }
-};
+      doc.save(`Budget_${startDate.toDateString()}_to_${endDate.toDateString()}.pdf`);
+    }
+  };
 
   return (
     <div className="calendar-view">
