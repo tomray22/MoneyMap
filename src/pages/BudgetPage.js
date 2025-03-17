@@ -52,6 +52,12 @@ const BudgetPage = ({ currency, exchangeRate }) => {
   const [newCategory, setNewCategory] = useState('');
   const [categorySettings, setCategorySettings] = useState({});
   const [remainingBudget, setRemainingBudget] = useState(0);
+  const [incomeType, setIncomeType] = useState('one-time'); // 'one-time' or 'gross-income'
+  const [incomeData, setIncomeData] = useState({
+    grossIncome: '',
+    incomeInterval: 'monthly',
+  });
+  const [savingsGoal, setSavingsGoal] = useState('');
   const navigate = useNavigate();
 
   // Clear dailyData from localStorage when returning to setup
@@ -64,13 +70,18 @@ const BudgetPage = ({ currency, exchangeRate }) => {
   // Load categories and ratios when a template is selected
   useEffect(() => {
     if (selectedTemplate) {
-      setCategories(selectedTemplate.categories);
+      const initialCategories = [...selectedTemplate.categories];
+      if (!initialCategories.includes('Savings')) {
+        initialCategories.push('Savings'); // Add unremovable Savings category
+      }
+      setCategories(initialCategories);
+
       const initialRatios = {};
       const initialDollarAmounts = {};
       const initialCategorySettings = {};
-      selectedTemplate.categories.forEach((category) => {
+      initialCategories.forEach((category) => {
         initialRatios[category] = '';
-        initialDollarAmounts[category] = null; // Use null instead of ''
+        initialDollarAmounts[category] = null;
         initialCategorySettings[category] = {
           useDollarAmounts: false,
           scheduleType: 'none',
@@ -103,6 +114,38 @@ const BudgetPage = ({ currency, exchangeRate }) => {
     }
   }, [categories, ratios, dollarAmounts, totalBudget, categorySettings]);
 
+  // Handle income type change
+  const handleIncomeTypeChange = (type) => {
+    setIncomeType(type);
+    setTotalBudget(''); // Reset total budget when switching income type
+  };
+
+// Handle gross income change
+const handleGrossIncomeChange = (value) => {
+  setIncomeData({ ...incomeData, grossIncome: value });
+  if (incomeData.incomeInterval && value) {
+    const income = parseFloat(value);
+    let calculatedBudget = 0;
+    switch (incomeData.incomeInterval) {
+      case 'weekly':
+        calculatedBudget = income * 4; // Approximate monthly budget
+        break;
+      case 'bi-weekly':
+        calculatedBudget = income * 2; // Approximate monthly budget
+        break;
+      case 'monthly':
+        calculatedBudget = income;
+        break;
+      case 'annually':
+        calculatedBudget = income / 12; // Approximate monthly budget
+        break;
+      default:
+        calculatedBudget = 0;
+    }
+    setTotalBudget(calculatedBudget.toFixed(2));
+  }
+};
+
   // Handle template selection
   const handleTemplateClick = (template) => {
     setSelectedTemplate(template);
@@ -114,7 +157,7 @@ const BudgetPage = ({ currency, exchangeRate }) => {
       const updatedCategories = [...categories, newCategory.trim()];
       setCategories(updatedCategories);
       setRatios({ ...ratios, [newCategory.trim()]: '' });
-      setDollarAmounts({ ...dollarAmounts, [newCategory.trim()]: null }); // Use null instead of ''
+      setDollarAmounts({ ...dollarAmounts, [newCategory.trim()]: null });
       setCategorySettings({
         ...categorySettings,
         [newCategory.trim()]: {
@@ -132,8 +175,9 @@ const BudgetPage = ({ currency, exchangeRate }) => {
     }
   };
 
-  // Remove a category
+  // Remove a category (except Savings)
   const handleRemoveCategory = (categoryToRemove) => {
+    if (categoryToRemove === 'Savings') return; // Prevent removing Savings
     const updatedCategories = categories.filter((category) => category !== categoryToRemove);
     setCategories(updatedCategories);
     const updatedRatios = { ...ratios };
@@ -208,7 +252,7 @@ const BudgetPage = ({ currency, exchangeRate }) => {
       alert('Please enter a valid total budget.');
       return;
     }
-
+  
     // Calculate end date based on time period
     let calculatedEndDate;
     if (timePeriod === 'weekly') {
@@ -227,7 +271,7 @@ const BudgetPage = ({ currency, exchangeRate }) => {
       alert('Please specify a valid time period.');
       return;
     }
-
+  
     // Prepare budget data
     const calculatedCategories = categories.map((category) => ({
       label: category,
@@ -246,14 +290,23 @@ const BudgetPage = ({ currency, exchangeRate }) => {
             day: categorySettings[category].selectedDay,
           },
     }));
-
-    const newBudgetData = {
-      categories: calculatedCategories,
-      totalBudget: parseFloat(totalBudget),
-      startDate,
-      endDate: calculatedEndDate,
-    };
-
+  
+  // Prepare budget data
+  const newBudgetData = {
+    categories: calculatedCategories,
+    totalBudget: parseFloat(totalBudget),
+    startDate,
+    endDate: calculatedEndDate,
+    incomeType,
+    grossIncome: incomeType === 'gross-income' ? parseFloat(incomeData.grossIncome) : null,
+    incomeInterval: incomeType === 'gross-income' ? incomeData.incomeInterval : null,
+    budgetGoals: {
+      savingsGoal: parseFloat(savingsGoal) || 0, // For future Savings Goal feature
+      savingsInterval: 'monthly',
+    },
+    remainingBudget: remainingBudget, // For Budgeted Savings
+  };
+  
     setBudgetData(newBudgetData);
     setIsSetupComplete(true);
     navigate('/calendar');
@@ -263,6 +316,80 @@ const BudgetPage = ({ currency, exchangeRate }) => {
     return (
       <div className="budget-setup">
         <h2>Budget Setup</h2>
+
+        {/* Income Type Toggle */}
+        <div className="income-type-toggle">
+          <label>
+            <input
+              type="radio"
+              value="one-time"
+              checked={incomeType === 'one-time'}
+              onChange={() => handleIncomeTypeChange('one-time')}
+            />
+            One-Time Budget
+          </label>
+          <label>
+            <input
+              type="radio"
+              value="gross-income"
+              checked={incomeType === 'gross-income'}
+              onChange={() => handleIncomeTypeChange('gross-income')}
+            />
+            Expected Gross Income
+          </label>
+        </div>
+
+        {/* One-Time Budget Input */}
+        {incomeType === 'one-time' && (
+        <div className="budget-total">
+          <label>
+            Total Budget:
+            <input
+              type="number"
+              value={totalBudget || ''}
+              onChange={(e) => {
+                const value = e.target.value;
+                setTotalBudget(value === '' ? '' : parseFloat(value) / exchangeRate);
+              }}
+              placeholder="Enter total budget"
+              min="0"
+            />
+          </label>
+          <p>
+            Remaining Budget: {currencySymbols[currency]}{(remainingBudget * exchangeRate).toFixed(2)}
+          </p>
+        </div>
+      )}
+
+        {/* Gross Income Form */}
+        {incomeType === 'gross-income' && (
+          <div className="gross-income-form">
+            <label>
+              Gross Income:
+              <input
+                type="number"
+                value={incomeData.grossIncome}
+                onChange={(e) => handleGrossIncomeChange(e.target.value)}
+                placeholder="Enter gross income"
+                min="0"
+              />
+            </label>
+            <label>
+              Income Interval:
+              <select
+                value={incomeData.incomeInterval}
+                onChange={(e) => setIncomeData({ ...incomeData, incomeInterval: e.target.value })}
+              >
+                <option value="weekly">Weekly</option>
+                <option value="bi-weekly">Bi-Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="annually">Annually</option>
+              </select>
+            </label>
+          </div>
+        )}
+
+        {/* Template Selection */}
         <div className="template-list">
           {templates.map((template) => (
             <div
@@ -274,27 +401,11 @@ const BudgetPage = ({ currency, exchangeRate }) => {
             </div>
           ))}
         </div>
+
+        {/* Budget Setup Form */}
         {selectedTemplate && (
           <div className="ratio-form">
             <h3>{selectedTemplate.name} - Set Budget</h3>
-            <div className="budget-total">
-              <label>
-                Total Budget:
-                <input
-                  type="number"
-                  value={totalBudget || ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setTotalBudget(value === '' ? '' : parseFloat(value) / exchangeRate);
-                  }}
-                  placeholder="Enter total budget"
-                  min="0"
-                />
-              </label>
-              <p>
-                Remaining Budget: {currencySymbols[currency]}{(remainingBudget * exchangeRate).toFixed(2)}
-              </p>
-            </div>
             <div className="time-period">
               <label>
                 Time Period:
@@ -342,7 +453,9 @@ const BudgetPage = ({ currency, exchangeRate }) => {
               </div>
             )}
             <ul>
-              {categories.map((category) => (
+            {categories
+              .filter((category) => category !== 'Savings') // Exclude savings from the main list
+              .map((category) => (
                 <li key={category}>
                   <div className="category-header">
                     <span>{category}</span>
@@ -470,6 +583,16 @@ const BudgetPage = ({ currency, exchangeRate }) => {
                   )}
                 </li>
               ))}
+              <li>
+              <div className="category-header">
+                <span>Savings</span>
+                <input
+                  type="number"
+                  value={remainingBudget.toFixed(2)}
+                  readOnly // Make the savings row read-only
+                />
+              </div>
+            </li>
             </ul>
             <div className="add-category">
               <input

@@ -39,7 +39,7 @@ const SummaryPage = ({ currency, exchangeRate }) => {
 
   // Calculate accumulated totals for the selected date range
   const calculateTotals = () => {
-    const totals = { budgeted: 0, actual: 0, difference: 0 };
+    const totals = { budgeted: 0, actual: 0, difference: 0, savings: 0 };
     const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
 
     // Calculate the total budgeted amount for the selected date range
@@ -99,10 +99,14 @@ const SummaryPage = ({ currency, exchangeRate }) => {
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       const dateKey = d.toDateString();
       if (savedData[dateKey]) {
-        savedData[dateKey].forEach((row) => {
+        savedData[dateKey].rows.forEach((row) => {
+          totals.budgeted += row.expected || 0;
           totals.actual += row.actual || 0;
-          totals.difference += row.difference;
+          totals.difference += row.difference || 0;
         });
+
+        // Add actualSavings to the totals
+        totals.savings += savedData[dateKey].actualSavings || 0;
       }
     }
 
@@ -119,6 +123,7 @@ const SummaryPage = ({ currency, exchangeRate }) => {
         Budgeted: `${currencySymbols[currency]}${(totals.budgeted * exchangeRate).toFixed(2)}`,
         Actual: `${currencySymbols[currency]}${(totals.actual * exchangeRate).toFixed(2)}`,
         Difference: `${currencySymbols[currency]}${(totals.difference * exchangeRate).toFixed(2)}`,
+        Savings: `${currencySymbols[currency]}${(totals.savings * exchangeRate).toFixed(2)}`,
       },
     ];
 
@@ -133,12 +138,13 @@ const SummaryPage = ({ currency, exchangeRate }) => {
     const doc = new jsPDF();
     doc.text(`Budget Summary (${startDate.toDateString()} to ${endDate.toDateString()})`, 10, 10);
     autoTable(doc, {
-      head: [['Label', 'Budgeted', 'Actual', 'Difference']],
+      head: [['Label', 'Budgeted', 'Actual', 'Difference', 'Savings']],
       body: [[
         'Totals',
         `${currencySymbols[currency]}${(totals.budgeted * exchangeRate).toFixed(2)}`,
         `${currencySymbols[currency]}${(totals.actual * exchangeRate).toFixed(2)}`,
         `${currencySymbols[currency]}${(totals.difference * exchangeRate).toFixed(2)}`,
+        `${currencySymbols[currency]}${(totals.savings * exchangeRate).toFixed(2)}`,
       ]],
     });
     doc.save(`Summary_${startDate.toDateString()}_to_${endDate.toDateString()}.pdf`);
@@ -171,6 +177,12 @@ const SummaryPage = ({ currency, exchangeRate }) => {
             <span className="totals-label">Total Difference</span>
             <span className="totals-value">
               {currencySymbols[currency]}{(totals.difference * exchangeRate).toFixed(2)}
+            </span>
+          </div>
+          <div className="totals-item">
+            <span className="totals-label">Total Savings</span>
+            <span className="totals-value">
+              {currencySymbols[currency]}{(totals.savings * exchangeRate).toFixed(2)}
             </span>
           </div>
         </div>

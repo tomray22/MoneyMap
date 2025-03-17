@@ -57,11 +57,12 @@ const CalendarView = ({ currency, exchangeRate }) => {
             if (days.includes(dayOfWeek)) {
               const dateKey = d.toDateString();
               dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
+              const savedRow = savedData[dateKey]?.rows?.find((row) => row.label === category.label);
               dailyBudgets[dateKey].categories.push({
                 label: category.label,
                 expected: category.expected * exchangeRate,
-                actual: (savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0) * exchangeRate,
-                difference: category.expected * exchangeRate,
+                actual: (savedRow?.actual || 0) * exchangeRate,
+                difference: category.expected * exchangeRate - (savedRow?.actual || 0) * exchangeRate,
               });
               dailyBudgets[dateKey].total += category.expected * exchangeRate;
             }
@@ -71,11 +72,12 @@ const CalendarView = ({ currency, exchangeRate }) => {
           const dateKey = new Date(date).toDateString();
           if (new Date(date) >= startDate && new Date(date) <= endDate) {
             dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
+            const savedRow = savedData[dateKey]?.rows?.find((row) => row.label === category.label);
             dailyBudgets[dateKey].categories.push({
               label: category.label,
               expected: category.expected * exchangeRate,
-              actual: (savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0) * exchangeRate,
-              difference: category.expected * exchangeRate,
+              actual: (savedRow?.actual || 0) * exchangeRate,
+              difference: category.expected * exchangeRate - (savedRow?.actual || 0) * exchangeRate,
             });
             dailyBudgets[dateKey].total += category.expected * exchangeRate;
           }
@@ -89,11 +91,12 @@ const CalendarView = ({ currency, exchangeRate }) => {
           date.setDate(date.getDate() + i);
           const dateKey = date.toDateString();
           dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
+          const savedRow = savedData[dateKey]?.rows?.find((row) => row.label === category.label);
           dailyBudgets[dateKey].categories.push({
             label: category.label,
             expected: dailyAmount,
-            actual: (savedData[dateKey]?.find((row) => row.label === category.label)?.actual || 0) * exchangeRate,
-            difference: dailyAmount,
+            actual: (savedRow?.actual || 0) * exchangeRate,
+            difference: dailyAmount - (savedRow?.actual || 0) * exchangeRate,
           });
           dailyBudgets[dateKey].total += dailyAmount;
         }
@@ -139,6 +142,13 @@ const CalendarView = ({ currency, exchangeRate }) => {
       }
     }
     return null;
+  };
+
+  // Highlight the budget goal day (end of the time period)
+  const tileClassName = ({ date }) => {
+    const dateKey = date.toDateString();
+    const endDateKey = new Date(budgetData.endDate).toDateString();
+    return dateKey === endDateKey ? 'budget-goal-day' : null;
   };
 
   // Export data for the selected time range
@@ -235,6 +245,7 @@ const CalendarView = ({ currency, exchangeRate }) => {
         onClickDay={handleDateChange}
         value={selectedDate}
         tileContent={tileContent}
+        tileClassName={tileClassName}
         locale={enUS}
         defaultView="month"
         defaultActiveStartDate={new Date(budgetData.startDate)}

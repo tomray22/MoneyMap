@@ -86,3 +86,21 @@
 .totals-row td {
   border-top: 2px solid #0097a7; /* Darker blue border at the top */
 }
+
+/* BudgetTable.css */
+.savings-row {
+  background-color: #e0f7fa; /* Light blue for savings */
+}
+
+.supplemental-income-row {
+  background-color: #f0f4c3; /* Light yellow for supplemental income */
+}
+
+.add-supplemental-income {
+  margin-top: 10px;
+  padding: 5px 10px;
+  background-color: #4caf50; /* Green button */
+  color: white;
+  border: none;
+  cursor: pointer;
+}
