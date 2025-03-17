@@ -404,3 +404,25 @@ button:hover {
   border: 1px solid #ccc;
   border-radius: 4px;
 }
+
+.income-option {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 8px 0;
+  cursor: pointer;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.income-option.selected {
+  border-color: #007bff;
+  background-color: #f0f8ff;
+}
+
+.income-option:hover {
+  background-color: #f9f9f9;
+}
+
+.income-option input[type="radio"] {
+  display: none; /* Hide the radio button visually */
+}

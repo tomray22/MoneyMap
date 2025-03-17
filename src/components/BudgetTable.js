@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useBudget } from '../BudgetContext';
+import { Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { exportToCSV, exportToPDF } from '../components/exportUtils';
 import '../styles/BudgetTable.css';
+
+// Register Chart.js components
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 // Currency symbols for display
 const currencySymbols = {
@@ -70,6 +73,10 @@ const BudgetTable = ({ currency, exchangeRate }) => {
           difference: row.difference * exchangeRate,
         }));
       setRows(updatedRows);
+
+      // Load supplemental incomes and unexpected expenses
+      setSupplementalIncomes(savedData[date].supplementalIncomes || []);
+      setUnexpectedExpenses(savedData[date].unexpectedExpenses || []);
     } else if (budgetData?.categories) {
       // If no saved data exists, calculate the daily budget allocation
       const initialRows = budgetData.categories
@@ -125,17 +132,19 @@ const BudgetTable = ({ currency, exchangeRate }) => {
     }
   }, [date, budgetData, exchangeRate, currency]);
 
-  // Save data to localStorage whenever rows or supplemental incomes change
+  // Save data to localStorage whenever rows, supplemental incomes, or unexpected expenses change
   useEffect(() => {
-    if (rows.length > 0) {
+    if (rows.length > 0 || supplementalIncomes.length > 0 || unexpectedExpenses.length > 0) {
       const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
       savedData[date] = {
         rows,
+        supplementalIncomes,
+        unexpectedExpenses,
         actualSavings, // Add actualSavings to saved data
       };
       localStorage.setItem('dailyData', JSON.stringify(savedData));
     }
-  }, [rows, date, actualSavings]);
+  }, [rows, date, actualSavings, supplementalIncomes, unexpectedExpenses]);
 
   // Handle changes to the "Actual" column
   const handleActualChange = (index, value) => {
@@ -149,6 +158,8 @@ const BudgetTable = ({ currency, exchangeRate }) => {
     const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
     savedData[date] = {
       rows: updatedRows,
+      supplementalIncomes,
+      unexpectedExpenses,
       actualSavings, // Include actualSavings in saved data
     };
     localStorage.setItem('dailyData', JSON.stringify(savedData));
@@ -177,6 +188,16 @@ const BudgetTable = ({ currency, exchangeRate }) => {
     const updatedIncomes = [...supplementalIncomes];
     updatedIncomes[index].amount = value === '' ? null : parseFloat(value);
     setSupplementalIncomes(updatedIncomes);
+
+    // Save updated supplemental incomes to localStorage
+    const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
+    savedData[date] = {
+      rows,
+      supplementalIncomes: updatedIncomes,
+      unexpectedExpenses,
+      actualSavings, // Include actualSavings in saved data
+    };
+    localStorage.setItem('dailyData', JSON.stringify(savedData));
   };
 
   // Handle Unexpected Expense Changes
@@ -184,79 +205,110 @@ const BudgetTable = ({ currency, exchangeRate }) => {
     const updatedExpenses = [...unexpectedExpenses];
     updatedExpenses[index].amount = value === '' ? null : parseFloat(value);
     setUnexpectedExpenses(updatedExpenses);
+
+    // Save updated unexpected expenses to localStorage
+    const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
+    savedData[date] = {
+      rows,
+      supplementalIncomes,
+      unexpectedExpenses: updatedExpenses,
+      actualSavings, // Include actualSavings in saved data
+    };
+    localStorage.setItem('dailyData', JSON.stringify(savedData));
+  };
+
+  // Data for the budgeted donut chart
+  const budgetedChartData = {
+    labels: [...rows.map((row) => row.label), 'Budgeted Savings'],
+    datasets: [
+      {
+        label: 'Budgeted',
+        data: [...rows.map((row) => row.expected), dailyBudgetedSavings],
+        backgroundColor: [
+          '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#FF6384',
+        ],
+      },
+    ],
+  };
+
+  // Data for the actual savings donut chart
+  const actualSavingsChartData = {
+    labels: ['Spent', 'Savings', 'Unexpected Expenses'],
+    datasets: [
+      {
+        label: 'Actual Spending',
+        data: [
+          totals.actual, // Total actual spending
+          actualSavings, // Actual savings
+          totalUnexpectedExpenses, // Total unexpected expenses
+        ],
+        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+      },
+    ],
   };
 
   // Export to CSV
-  const exportToCSV = () => {
-    const data = [
-      ...rows.map((row) => ({
-        Label: row.label,
-        Budgeted: `${currencySymbols[currency]}${row.expected.toFixed(2)}`,
-        Actual: `${currencySymbols[currency]}${(row.actual || 0).toFixed(2)}`,
-        Difference: `${currencySymbols[currency]}${row.difference.toFixed(2)}`,
-      })),
-      {
-        Label: 'Savings',
-        Budgeted: `${currencySymbols[currency]}${dailyBudgetedSavings.toFixed(2)}`,
-        Actual: `${currencySymbols[currency]}${actualSavings.toFixed(2)}`,
-        Difference: `${currencySymbols[currency]}${savingsDifference.toFixed(2)}`,
+  const handleExportCSV = () => {
+    const data = {
+      totals: {
+        budgeted: totals.budgeted,
+        actual: totals.actual,
+        difference: totals.difference,
+        savings: actualSavings,
+        unexpectedExpenses: totalUnexpectedExpenses,
       },
-      ...supplementalIncomes.map((income) => ({
-        Label: income.label,
-        Amount: `${currencySymbols[currency]}${(income.amount || 0).toFixed(2)}`,
-      })),
-      ...unexpectedExpenses.map((expense) => ({
-        Label: expense.label,
-        Amount: `${currencySymbols[currency]}${(expense.amount || 0).toFixed(2)}`,
-      })),
-    ];
-
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Budget');
-    XLSX.writeFile(workbook, `Budget_${date}.csv`);
+      dailyData: [
+        {
+          date: date,
+          rows: [
+            ...rows,
+            {
+              label: 'Savings',
+              expected: dailyBudgetedSavings,
+              actual: actualSavings,
+              difference: savingsDifference,
+            },
+          ],
+          supplementalIncomes: supplementalIncomes,
+          unexpectedExpenses: unexpectedExpenses,
+          savings: actualSavings,
+        },
+      ],
+    };
+  
+    exportToCSV(data, `Budget_${date}`);
   };
 
   // Export to PDF
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.text(`Budget for ${date}`, 10, 10);
-    autoTable(doc, {
-      head: [['Label', 'Budgeted', 'Actual', 'Difference']],
-      body: [
-        ...rows.map((row) => [
-          row.label,
-          `${currencySymbols[currency]}${row.expected.toFixed(2)}`,
-          `${currencySymbols[currency]}${(row.actual || 0).toFixed(2)}`,
-          `${currencySymbols[currency]}${row.difference.toFixed(2)}`,
-        ]),
-        [
-          'Savings',
-          `${currencySymbols[currency]}${dailyBudgetedSavings.toFixed(2)}`,
-          `${currencySymbols[currency]}${actualSavings.toFixed(2)}`,
-          `${currencySymbols[currency]}${savingsDifference.toFixed(2)}`,
-        ],
+  const handleExportPDF = () => {
+    const data = {
+      totals: {
+        budgeted: totals.budgeted,
+        actual: totals.actual,
+        difference: totals.difference,
+        savings: actualSavings,
+        unexpectedExpenses: totalUnexpectedExpenses,
+      },
+      dailyData: [
+        {
+          date: date,
+          rows: [
+            ...rows,
+            {
+              label: 'Savings',
+              expected: dailyBudgetedSavings,
+              actual: actualSavings,
+              difference: savingsDifference,
+            },
+          ],
+          supplementalIncomes: supplementalIncomes,
+          unexpectedExpenses: unexpectedExpenses,
+          savings: actualSavings,
+        },
       ],
-    });
-
-    // Add Supplemental Income and Unexpected Expenses
-    doc.addPage();
-    doc.text('Supplemental Income and Unexpected Expenses', 10, 10);
-    autoTable(doc, {
-      head: [['Label', 'Amount']],
-      body: [
-        ...supplementalIncomes.map((income) => [
-          income.label,
-          `${currencySymbols[currency]}${(income.amount || 0).toFixed(2)}`,
-        ]),
-        ...unexpectedExpenses.map((expense) => [
-          expense.label,
-          `${currencySymbols[currency]}${(expense.amount || 0).toFixed(2)}`,
-        ]),
-      ],
-    });
-
-    doc.save(`Budget_${date}.pdf`);
+    };
+  
+    exportToPDF(data, `Budget_${date}`, currencySymbols[currency]);
   };
 
   if (!rows || rows.length === 0) {
@@ -410,10 +462,22 @@ const BudgetTable = ({ currency, exchangeRate }) => {
         </tbody>
       </table>
 
+      {/* Donut Charts */}
+      <div className="charts-container">
+        <div className="chart">
+          <h3>Budgeted Spending</h3>
+          <Doughnut data={budgetedChartData} />
+        </div>
+        <div className="chart">
+          <h3>Actual Spending</h3>
+          <Doughnut data={actualSavingsChartData} />
+        </div>
+      </div>
+
       {/* Export Buttons */}
       <div className="export-buttons">
-        <button onClick={exportToCSV}>Export to CSV</button>
-        <button onClick={exportToPDF}>Export to PDF</button>
+        <button onClick={handleExportCSV}>Export to CSV</button>
+        <button onClick={handleExportPDF}>Export to PDF</button>
       </div>
     </div>
   );

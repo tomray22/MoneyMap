@@ -150,3 +150,11 @@
 .react-calendar__tile.budget-goal-day {
   color: #333; /* Dark text for better readability */
 }
+
+.savings-goal-day-outline {
+  border: 3px dashed gold; /* Thicker gold dashed outline */
+  border-radius: 6px; /* More rounded corners */
+  box-shadow: 0 0 10px gold; /* Glow effect */
+  position: relative; /* Ensure the outline appears on top of the tile content */
+  z-index: 10; /* Higher z-index to ensure it's on top */
+}

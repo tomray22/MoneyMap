@@ -119,7 +119,9 @@ const BudgetPage = ({ currency, exchangeRate }) => {
   // Handle income type change
   const handleIncomeTypeChange = (type) => {
     setIncomeType(type);
-    setTotalBudget(''); // Reset total budget when switching income type
+    if (type !== 'import') {
+      setTotalBudget(''); // Reset total budget when switching income type
+    }
   };
 
   // Handle gross income change
@@ -146,6 +148,61 @@ const BudgetPage = ({ currency, exchangeRate }) => {
       }
       setTotalBudget(calculatedBudget.toFixed(2));
     }
+  };
+
+  // Handle importing from a JSON 
+  const handleImportJSON = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+  
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedData = JSON.parse(e.target.result);
+  
+        // Validate the imported data structure
+        if (!importedData.totals || !importedData.dailyData) {
+          throw new Error('Invalid file format: Missing required fields.');
+        }
+  
+        // Extract the date range from the dailyData
+        const startDate = new Date(importedData.dailyData[0].date); // First day in the range
+        const endDate = new Date(importedData.dailyData[importedData.dailyData.length - 1].date); // Last day in the range
+  
+        // Validate the dates
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          throw new Error('Invalid date format in the imported file.');
+        }
+  
+        // Prepare the updated budget data
+        const updatedBudgetData = {
+          ...budgetData, // Preserve existing budget data
+          startDate: startDate.toISOString(), // Convert to ISO string for consistency
+          endDate: endDate.toISOString(),
+        };
+  
+        // Update the budget state with the imported data
+        setBudgetData(updatedBudgetData);
+  
+        // Save the dailyData to localStorage
+        const updatedDailyData = {};
+        importedData.dailyData.forEach((day) => {
+          updatedDailyData[day.date] = {
+            rows: day.rows,
+            supplementalIncomes: day.supplementalIncomes || [],
+            unexpectedExpenses: day.unexpectedExpenses || [],
+            savings: day.savings || 0,
+          };
+        });
+        localStorage.setItem('dailyData', JSON.stringify(updatedDailyData));
+  
+        alert('Budget data imported successfully!');
+        navigate('/calendar'); // Navigate to the Calendar view
+      } catch (error) {
+        alert(`Error importing JSON file: ${error.message}`);
+      }
+    };
+    reader.readAsText(file);
   };
 
   // Handle template selection
@@ -273,16 +330,17 @@ const BudgetPage = ({ currency, exchangeRate }) => {
     let calculatedEndDate;
     if (timePeriod === 'weekly') {
       calculatedEndDate = new Date(startDate);
-      calculatedEndDate.setDate(startDate.getDate() + 7);
+      calculatedEndDate.setDate(startDate.getDate() + 6); // 6 days after start (7 days total)
     } else if (timePeriod === 'bi-weekly') {
       calculatedEndDate = new Date(startDate);
-      calculatedEndDate.setDate(startDate.getDate() + 14);
+      calculatedEndDate.setDate(startDate.getDate() + 13); // 13 days after start (14 days total)
     } else if (timePeriod === 'monthly') {
       calculatedEndDate = new Date(startDate);
       calculatedEndDate.setMonth(startDate.getMonth() + 1);
+      calculatedEndDate.setDate(calculatedEndDate.getDate() - 1); // Last day of the month
     } else if (timePeriod === 'custom' && customTimePeriod) {
       calculatedEndDate = new Date(startDate);
-      calculatedEndDate.setDate(startDate.getDate() + parseInt(customTimePeriod, 10));
+      calculatedEndDate.setDate(startDate.getDate() + parseInt(customTimePeriod, 10) - 1); // Subtract 1 day
     } else {
       alert('Please specify a valid time period.');
       return;
@@ -325,7 +383,7 @@ const BudgetPage = ({ currency, exchangeRate }) => {
     setBudgetData(newBudgetData);
     setIsSetupComplete(true);
     navigate('/calendar');
-  };
+    };
 
   // Toggle drawer
   const toggleDrawer = () => {
@@ -344,35 +402,73 @@ const BudgetPage = ({ currency, exchangeRate }) => {
 
         {/* Income Type Toggle */}
         <div className="income-type-toggle">
-          <div className="income-option">
-            <label>
-              <input
-                type="radio"
-                value="one-time"
-                checked={incomeType === 'one-time'}
-                onChange={() => handleIncomeTypeChange('one-time')}
-              />
-              One-Time Budget
-            </label>
-            <p className="option-description">
-              Use this if you have a fixed amount of money to budget (e.g., a savings fund or a one-time payment).
-            </p>
-          </div>
-          <div className="income-option">
-            <label>
-              <input
-                type="radio"
-                value="gross-income"
-                checked={incomeType === 'gross-income'}
-                onChange={() => handleIncomeTypeChange('gross-income')}
-              />
-              Expected Gross Income
-            </label>
-            <p className="option-description">
-              Use this if you want to budget based on your regular income (e.g., salary or monthly earnings).
-            </p>
-          </div>
+
+        {/* One-Time Budget Tile */}
+        <div
+          className={`income-option ${incomeType === 'one-time' ? 'selected' : ''}`}
+          onClick={() => handleIncomeTypeChange('one-time')}
+        >
+          <label>
+            <input
+              type="radio"
+              value="one-time"
+              checked={incomeType === 'one-time'}
+              onChange={() => handleIncomeTypeChange('one-time')}
+            />
+            One-Time Budget
+          </label>
+          <p className="option-description">
+            Use this if you have a fixed amount of money to budget (e.g., a savings fund or a one-time payment).
+          </p>
         </div>
+
+        {/* Expected Gross Income Tile */}
+        <div
+          className={`income-option ${incomeType === 'gross-income' ? 'selected' : ''}`}
+          onClick={() => handleIncomeTypeChange('gross-income')}
+        >
+          <label>
+            <input
+              type="radio"
+              value="gross-income"
+              checked={incomeType === 'gross-income'}
+              onChange={() => handleIncomeTypeChange('gross-income')}
+            />
+            Expected Gross Income
+          </label>
+          <p className="option-description">
+            Use this if you want to budget based on your regular income (e.g., salary or monthly earnings).
+          </p>
+        </div>
+
+        {/* Load Previous Budget Tile */}
+        <div
+          className={`income-option ${incomeType === 'import' ? 'selected' : ''}`}
+          onClick={() => handleIncomeTypeChange('import')}
+        >
+          <label>
+            <input
+              type="radio"
+              value="import"
+              checked={incomeType === 'import'}
+              onChange={() => handleIncomeTypeChange('import')}
+            />
+            Load Previous Budget
+          </label>
+          <p className="option-description">
+            Upload a previously exported budget JSON file to load your data. (WIP)
+          </p>
+          {incomeType === 'import' && (
+            <div className="import-section">
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportJSON}
+              />
+            </div>
+          )}
+        </div>
+      </div>
 
         {/* One-Time Budget Input */}
         {incomeType === 'one-time' && (

@@ -197,3 +197,26 @@
 .unexpected-expense-row {
   background-color: #ffe6e6; /* Light red for unexpected expenses */
 }
+
+/* Donut Chart Container */
+.charts-container {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20px;
+}
+
+/* Individual Chart Container */
+.chart {
+  width: 300px; /* Adjust the width as needed */
+  height: 300px; /* Adjust the height as needed */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Center horizontally */
+  justify-content: center; /* Center vertically */
+  text-align: center; /* Center text */
+}
+
+/* Chart Title */
+.chart h3 {
+  margin-bottom: 10px; /* Add some space below the title */
+}
