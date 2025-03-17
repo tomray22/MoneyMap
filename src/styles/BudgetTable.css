@@ -87,20 +87,88 @@
   border-top: 2px solid #0097a7; /* Darker blue border at the top */
 }
 
-/* BudgetTable.css */
+/* Savings Row Styles */
 .savings-row {
   background-color: #e0f7fa; /* Light blue for savings */
 }
 
+/* Supplemental Income Row Styles */
 .supplemental-income-row {
   background-color: #f0f4c3; /* Light yellow for supplemental income */
 }
 
+/* Buttons Container */
+.buttons-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px 0;
+}
+
 .add-supplemental-income {
-  margin-top: 10px;
-  padding: 5px 10px;
   background-color: #4caf50; /* Green button */
   color: white;
   border: none;
+  padding: 10px 20px;
   cursor: pointer;
+}
+
+.add-unexpected-expense {
+  background-color: #f44336; /* Red button */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+/* Supplemental Income and Unexpected Expenses Table */
+.income-expenses-table {
+  width: 100%;
+  margin-top: 20px;
+  border-collapse: collapse;
+}
+
+.income-expenses-table th,
+.income-expenses-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.income-expenses-table th {
+  background-color: #f2f2f2;
+}
+
+.income-expenses-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.income-expenses-table tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* Savings Table */
+.savings-table {
+  width: 100%;
+  margin-top: 20px;
+  border-collapse: collapse;
+}
+
+.savings-table th,
+.savings-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.savings-table th {
+  background-color: #f2f2f2;
+}
+
+.savings-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.savings-table tr:hover {
+  background-color: #f1f1f1;
 }

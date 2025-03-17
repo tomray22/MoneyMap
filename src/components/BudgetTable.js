@@ -28,6 +28,7 @@ const BudgetTable = ({ currency, exchangeRate }) => {
   const { budgetData } = useBudget(); // Access budgetData from context
   const [rows, setRows] = useState([]);
   const [supplementalIncomes, setSupplementalIncomes] = useState([]);
+  const [unexpectedExpenses, setUnexpectedExpenses] = useState([]);
 
   // Calculate totals for the main table (excluding Savings)
   const totals = rows.reduce(
@@ -46,8 +47,11 @@ const BudgetTable = ({ currency, exchangeRate }) => {
   // Calculate Total Supplemental Income
   const totalSupplementalIncome = supplementalIncomes.reduce((sum, income) => sum + (income.amount || 0), 0);
 
+  // Calculate Total Unexpected Expenses
+  const totalUnexpectedExpenses = unexpectedExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+
   // Calculate Actual Savings
-  const actualSavings = dailyBudgetedSavings + totalSupplementalIncome + totals.difference;
+  const actualSavings = dailyBudgetedSavings + totalSupplementalIncome - totalUnexpectedExpenses + totals.difference;
 
   // Calculate Savings Difference (Actual - Budgeted)
   const savingsDifference = actualSavings - dailyBudgetedSavings;
@@ -159,6 +163,15 @@ const BudgetTable = ({ currency, exchangeRate }) => {
     setSupplementalIncomes([...supplementalIncomes, newIncome]);
   };
 
+  // Add Unexpected Expense Row
+  const addUnexpectedExpense = () => {
+    const newExpense = {
+      label: 'Unexpected Expense',
+      amount: 0,
+    };
+    setUnexpectedExpenses([...unexpectedExpenses, newExpense]);
+  };
+
   // Handle Supplemental Income Changes
   const handleSupplementalIncomeChange = (index, value) => {
     const updatedIncomes = [...supplementalIncomes];
@@ -166,19 +179,37 @@ const BudgetTable = ({ currency, exchangeRate }) => {
     setSupplementalIncomes(updatedIncomes);
   };
 
+  // Handle Unexpected Expense Changes
+  const handleUnexpectedExpenseChange = (index, value) => {
+    const updatedExpenses = [...unexpectedExpenses];
+    updatedExpenses[index].amount = value === '' ? null : parseFloat(value);
+    setUnexpectedExpenses(updatedExpenses);
+  };
+
   // Export to CSV
   const exportToCSV = () => {
-    if (rows.length === 0) {
-      alert('No data available to export.');
-      return;
-    }
-
-    const data = rows.map((row) => ({
-      Label: row.label,
-      Budgeted: `${currencySymbols[currency]}${row.expected.toFixed(2)}`,
-      Actual: `${currencySymbols[currency]}${(row.actual || 0).toFixed(2)}`,
-      Difference: `${currencySymbols[currency]}${row.difference.toFixed(2)}`,
-    }));
+    const data = [
+      ...rows.map((row) => ({
+        Label: row.label,
+        Budgeted: `${currencySymbols[currency]}${row.expected.toFixed(2)}`,
+        Actual: `${currencySymbols[currency]}${(row.actual || 0).toFixed(2)}`,
+        Difference: `${currencySymbols[currency]}${row.difference.toFixed(2)}`,
+      })),
+      {
+        Label: 'Savings',
+        Budgeted: `${currencySymbols[currency]}${dailyBudgetedSavings.toFixed(2)}`,
+        Actual: `${currencySymbols[currency]}${actualSavings.toFixed(2)}`,
+        Difference: `${currencySymbols[currency]}${savingsDifference.toFixed(2)}`,
+      },
+      ...supplementalIncomes.map((income) => ({
+        Label: income.label,
+        Amount: `${currencySymbols[currency]}${(income.amount || 0).toFixed(2)}`,
+      })),
+      ...unexpectedExpenses.map((expense) => ({
+        Label: expense.label,
+        Amount: `${currencySymbols[currency]}${(expense.amount || 0).toFixed(2)}`,
+      })),
+    ];
 
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
@@ -188,21 +219,43 @@ const BudgetTable = ({ currency, exchangeRate }) => {
 
   // Export to PDF
   const exportToPDF = () => {
-    if (rows.length === 0) {
-      alert('No data available to export.');
-      return;
-    }
     const doc = new jsPDF();
     doc.text(`Budget for ${date}`, 10, 10);
     autoTable(doc, {
       head: [['Label', 'Budgeted', 'Actual', 'Difference']],
-      body: rows.map((row) => [
-        row.label,
-        `${currencySymbols[currency]}${row.expected.toFixed(2)}`,
-        `${currencySymbols[currency]}${(row.actual || 0).toFixed(2)}`,
-        `${currencySymbols[currency]}${row.difference.toFixed(2)}`,
-      ]),
+      body: [
+        ...rows.map((row) => [
+          row.label,
+          `${currencySymbols[currency]}${row.expected.toFixed(2)}`,
+          `${currencySymbols[currency]}${(row.actual || 0).toFixed(2)}`,
+          `${currencySymbols[currency]}${row.difference.toFixed(2)}`,
+        ]),
+        [
+          'Savings',
+          `${currencySymbols[currency]}${dailyBudgetedSavings.toFixed(2)}`,
+          `${currencySymbols[currency]}${actualSavings.toFixed(2)}`,
+          `${currencySymbols[currency]}${savingsDifference.toFixed(2)}`,
+        ],
+      ],
     });
+
+    // Add Supplemental Income and Unexpected Expenses
+    doc.addPage();
+    doc.text('Supplemental Income and Unexpected Expenses', 10, 10);
+    autoTable(doc, {
+      head: [['Label', 'Amount']],
+      body: [
+        ...supplementalIncomes.map((income) => [
+          income.label,
+          `${currencySymbols[currency]}${(income.amount || 0).toFixed(2)}`,
+        ]),
+        ...unexpectedExpenses.map((expense) => [
+          expense.label,
+          `${currencySymbols[currency]}${(expense.amount || 0).toFixed(2)}`,
+        ]),
+      ],
+    });
+
     doc.save(`Budget_${date}.pdf`);
   };
 
@@ -250,8 +303,8 @@ const BudgetTable = ({ currency, exchangeRate }) => {
         </tfoot>
       </table>
 
-      {/* Supplemental Income Table */}
-      <table className="supplemental-income-table">
+      {/* Supplemental Income and Unexpected Expenses Table */}
+      <table className="income-expenses-table">
         <thead>
           <tr>
             <th>Label</th>
@@ -260,7 +313,7 @@ const BudgetTable = ({ currency, exchangeRate }) => {
         </thead>
         <tbody>
           {supplementalIncomes.map((income, index) => (
-            <tr key={index}>
+            <tr key={`supplemental-${index}`}>
               <td>
                 <input
                   type="text"
@@ -284,19 +337,43 @@ const BudgetTable = ({ currency, exchangeRate }) => {
               </td>
             </tr>
           ))}
+          {unexpectedExpenses.map((expense, index) => (
+            <tr key={`unexpected-${index}`}>
+              <td>
+                <input
+                  type="text"
+                  value={expense.label}
+                  onChange={(e) => {
+                    const updatedExpenses = [...unexpectedExpenses];
+                    updatedExpenses[index].label = e.target.value;
+                    setUnexpectedExpenses(updatedExpenses);
+                  }}
+                  placeholder="Label (e.g., Emergency)"
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  value={expense.amount === null || expense.amount === undefined ? '' : expense.amount / exchangeRate}
+                  onChange={(e) => handleUnexpectedExpenseChange(index, e.target.value)}
+                  placeholder="Enter amount"
+                  step="0.01"
+                />
+              </td>
+            </tr>
+          ))}
         </tbody>
-        <tfoot>
-          <tr>
-            <td><strong>Total Supplemental Income</strong></td>
-            <td><strong>{currencySymbols[currency]}{totalSupplementalIncome.toFixed(2)}</strong></td>
-          </tr>
-        </tfoot>
       </table>
 
-      {/* Add Supplemental Income Button */}
-      <button onClick={addSupplementalIncome} className="add-supplemental-income">
-        Add Supplemental Income
-      </button>
+      {/* Add Supplemental Income and Unexpected Expense Buttons */}
+      <div className="buttons-container">
+        <button onClick={addSupplementalIncome} className="add-supplemental-income">
+          Add Supplemental Income
+        </button>
+        <button onClick={addUnexpectedExpense} className="add-unexpected-expense">
+          Add Unexpected Expense
+        </button>
+      </div>
 
       {/* Savings Table */}
       <table className="savings-table">
