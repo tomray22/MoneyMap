@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useBudget } from '../BudgetContext';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { exportToCSV, exportToPDF } from '../components/exportUtils';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { ClipLoader } from 'react-spinners';
+import { FaFileExport, FaPlus } from 'react-icons/fa';
 import '../styles/BudgetTable.css';
 
 // Register Chart.js components
@@ -28,10 +34,13 @@ const currencySymbols = {
 
 const BudgetTable = ({ currency, exchangeRate }) => {
   const { date } = useParams(); // Get date from URL params
+  const navigate = useNavigate();
   const { budgetData } = useBudget(); // Access budgetData from context
   const [rows, setRows] = useState([]);
   const [supplementalIncomes, setSupplementalIncomes] = useState([]);
   const [unexpectedExpenses, setUnexpectedExpenses] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date(date));
+  const [loading, setLoading] = useState(true);
 
   // Calculate totals for the main table (excluding Savings)
   const totals = rows.reduce(
@@ -130,21 +139,14 @@ const BudgetTable = ({ currency, exchangeRate }) => {
 
       setRows(initialRows);
     }
+    setLoading(false); // Set loading to false after data is loaded
   }, [date, budgetData, exchangeRate, currency]);
 
-  // Save data to localStorage whenever rows, supplemental incomes, or unexpected expenses change
-  useEffect(() => {
-    if (rows.length > 0 || supplementalIncomes.length > 0 || unexpectedExpenses.length > 0) {
-      const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
-      savedData[date] = {
-        rows,
-        supplementalIncomes,
-        unexpectedExpenses,
-        actualSavings, // Add actualSavings to saved data
-      };
-      localStorage.setItem('dailyData', JSON.stringify(savedData));
-    }
-  }, [rows, date, actualSavings, supplementalIncomes, unexpectedExpenses]);
+  // Handle date selection
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+    navigate(`/day/${date.toDateString()}`);
+  };
 
   // Handle changes to the "Actual" column
   const handleActualChange = (index, value) => {
@@ -227,6 +229,7 @@ const BudgetTable = ({ currency, exchangeRate }) => {
         backgroundColor: [
           '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#FF6384',
         ],
+        borderWidth: 1,
       },
     ],
   };
@@ -243,81 +246,111 @@ const BudgetTable = ({ currency, exchangeRate }) => {
           totalUnexpectedExpenses, // Total unexpected expenses
         ],
         backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+        borderWidth: 1,
       },
     ],
   };
 
   // Export to CSV
   const handleExportCSV = () => {
-    const data = {
-      totals: {
-        budgeted: totals.budgeted,
-        actual: totals.actual,
-        difference: totals.difference,
-        savings: actualSavings,
-        unexpectedExpenses: totalUnexpectedExpenses,
-      },
-      dailyData: [
-        {
-          date: date,
-          rows: [
-            ...rows,
-            {
-              label: 'Savings',
-              expected: dailyBudgetedSavings,
-              actual: actualSavings,
-              difference: savingsDifference,
-            },
-          ],
-          supplementalIncomes: supplementalIncomes,
-          unexpectedExpenses: unexpectedExpenses,
+    try {
+      const data = {
+        totals: {
+          budgeted: totals.budgeted,
+          actual: totals.actual,
+          difference: totals.difference,
           savings: actualSavings,
+          unexpectedExpenses: totalUnexpectedExpenses,
         },
-      ],
-    };
-  
-    exportToCSV(data, `Budget_${date}`);
+        dailyData: [
+          {
+            date: date,
+            rows: [
+              ...rows,
+              {
+                label: 'Savings',
+                expected: dailyBudgetedSavings,
+                actual: actualSavings,
+                difference: savingsDifference,
+              },
+            ],
+            supplementalIncomes: supplementalIncomes,
+            unexpectedExpenses: unexpectedExpenses,
+            savings: actualSavings,
+          },
+        ],
+      };
+
+      exportToCSV(data, `Budget_${date}`);
+      toast.success('Data exported to CSV successfully!', { position: 'bottom-right' });
+    } catch (error) {
+      toast.error('Failed to export data to CSV.', { position: 'bottom-right' });
+    }
   };
 
   // Export to PDF
   const handleExportPDF = () => {
-    const data = {
-      totals: {
-        budgeted: totals.budgeted,
-        actual: totals.actual,
-        difference: totals.difference,
-        savings: actualSavings,
-        unexpectedExpenses: totalUnexpectedExpenses,
-      },
-      dailyData: [
-        {
-          date: date,
-          rows: [
-            ...rows,
-            {
-              label: 'Savings',
-              expected: dailyBudgetedSavings,
-              actual: actualSavings,
-              difference: savingsDifference,
-            },
-          ],
-          supplementalIncomes: supplementalIncomes,
-          unexpectedExpenses: unexpectedExpenses,
+    try {
+      const data = {
+        totals: {
+          budgeted: totals.budgeted,
+          actual: totals.actual,
+          difference: totals.difference,
           savings: actualSavings,
+          unexpectedExpenses: totalUnexpectedExpenses,
         },
-      ],
-    };
-  
-    exportToPDF(data, `Budget_${date}`, currencySymbols[currency]);
+        dailyData: [
+          {
+            date: date,
+            rows: [
+              ...rows,
+              {
+                label: 'Savings',
+                expected: dailyBudgetedSavings,
+                actual: actualSavings,
+                difference: savingsDifference,
+              },
+            ],
+            supplementalIncomes: supplementalIncomes,
+            unexpectedExpenses: unexpectedExpenses,
+            savings: actualSavings,
+          },
+        ],
+      };
+
+      exportToPDF(data, `Budget_${date}`, currencySymbols[currency]);
+      toast.success('Data exported to PDF successfully!', { position: 'bottom-right' });
+    } catch (error) {
+      toast.error('Failed to export data to PDF.', { position: 'bottom-right' });
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="loading-spinner">
+        <ClipLoader color="#007bff" size={50} />
+      </div>
+    );
+  }
 
   if (!rows || rows.length === 0) {
     return <div>No data available for this day.</div>;
   }
 
   return (
-    <div>
-      {date && <h1>Budget for {date}</h1>}
+    <div className="page-container">
+      {/* Header with Date Picker */}
+      <div className="header">
+        <h1>Budget for {selectedDate.toDateString()}</h1>
+        <DatePicker
+          selected={selectedDate}
+          onChange={handleDateChange}
+          dateFormat="MMMM d, yyyy"
+          className="date-picker"
+        />
+      </div>
+
+      {/* Main Budget Table */}
       <table className="budget-table">
         <thead>
           <tr>
@@ -429,10 +462,10 @@ const BudgetTable = ({ currency, exchangeRate }) => {
       {/* Add Supplemental Income and Unexpected Expense Buttons */}
       <div className="buttons-container">
         <button onClick={addSupplementalIncome} className="add-supplemental-income">
-          Add Supplemental Income
+          <FaPlus /> Add Supplemental Income
         </button>
         <button onClick={addUnexpectedExpense} className="add-unexpected-expense">
-          Add Unexpected Expense
+          <FaPlus /> Add Unexpected Expense
         </button>
       </div>
 
@@ -476,9 +509,16 @@ const BudgetTable = ({ currency, exchangeRate }) => {
 
       {/* Export Buttons */}
       <div className="export-buttons">
-        <button onClick={handleExportCSV}>Export to CSV</button>
-        <button onClick={handleExportPDF}>Export to PDF</button>
+        <button onClick={handleExportCSV}>
+          <FaFileExport /> Export to CSV
+        </button>
+        <button onClick={handleExportPDF}>
+          <FaFileExport /> Export to PDF
+        </button>
       </div>
+
+      {/* Toast Container for Notifications */}
+      <ToastContainer position="bottom-right" autoClose={3000} />
     </div>
   );
 };

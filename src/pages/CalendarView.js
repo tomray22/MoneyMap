@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Calendar from 'react-calendar';
 import DatePicker from 'react-datepicker';
@@ -8,6 +8,10 @@ import { useBudget } from '../BudgetContext';
 import { exportToCSV, exportToPDF } from '../components/exportUtils';
 import { enUS } from 'date-fns/locale';
 import '../styles/Calendar.css';
+import Loading from '../components/Loading'; // Import the Loading component
+import { motion } from 'framer-motion'; // Import framer-motion for animations
+import { ToastContainer, toast } from 'react-toastify'; // Import toast notifications
+import 'react-toastify/dist/ReactToastify.css'; // Import toast styles
 
 // Currency symbols for display
 const currencySymbols = {
@@ -29,6 +33,7 @@ const currencySymbols = {
 const CalendarView = ({ currency, exchangeRate }) => {
   const { budgetData } = useBudget();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true); // Added loading state
 
   const [selectedDate, setSelectedDate] = useState(new Date(budgetData?.startDate || new Date()));
   const [startDate, setStartDate] = useState(new Date(budgetData?.startDate || new Date()));
@@ -37,18 +42,27 @@ const CalendarView = ({ currency, exchangeRate }) => {
   // Memoize daily budgets to avoid recalculating on every render
   const dailyBudgets = useMemo(() => {
     if (!budgetData) return {};
-  
+
     const { categories, startDate, endDate } = budgetData;
     const dailyBudgets = {};
-  
+
     // Load saved data from localStorage
     const savedData = JSON.parse(localStorage.getItem('dailyData')) || {};
-  
+
     // Loop through each day from startDate to endDate (inclusive)
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       const dateKey = d.toDateString();
-      dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [] };
-  
+      dailyBudgets[dateKey] = dailyBudgets[dateKey] || { total: 0, categories: [], unexpectedExpenses: 0 };
+
+      // Add unexpected expenses if they exist
+      if (savedData[dateKey]?.unexpectedExpenses) {
+        dailyBudgets[dateKey].unexpectedExpenses = savedData[dateKey].unexpectedExpenses.reduce(
+          (sum, expense) => sum + (expense.amount || 0),
+          0
+        );
+      }
+
+      // Calculate budget categories
       categories.forEach((category) => {
         if (category.schedule) {
           // Handle scheduled payments
@@ -94,9 +108,36 @@ const CalendarView = ({ currency, exchangeRate }) => {
         }
       });
     }
-  
+
     return dailyBudgets;
   }, [budgetData, exchangeRate]);
+
+  // Simulate loading delay (replace with actual data loading logic)
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 500); // 2-second delay
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <Loading />; // Show loading screen
+  }
+
+  // Safely handle budgetData being undefined
+  if (!budgetData) {
+    return (
+      <motion.div
+        className="calendar-view"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <h1>Budget Calendar</h1>
+        <p>Error: No budget data available. Please complete setup first.</p>
+        <button onClick={() => navigate('/budget')}>Go to Setup</button>
+        {toast.error('No budget data available. Please complete setup first.', { position: 'bottom-right' })}
+      </motion.div>
+    );
+  }
 
   // Handle date selection
   const handleDateChange = (date) => {
@@ -106,20 +147,9 @@ const CalendarView = ({ currency, exchangeRate }) => {
     if (selectedDayData) {
       navigate(`/day/${formattedDate}`, { state: { date: formattedDate, data: selectedDayData.categories } });
     } else {
-      alert('No budget data available for this day.');
+      toast.error('No budget data available for this day.', { position: 'bottom-right' });
     }
   };
-
-  // Safely handle budgetData being undefined
-  if (!budgetData) {
-    return (
-      <div className="calendar-view">
-        <h1>Budget Calendar</h1>
-        <p>Error: No budget data available. Please complete setup first.</p>
-        <button onClick={() => navigate('/budget')}>Go to Setup</button>
-      </div>
-    );
-  }
 
   // Custom tile content for the calendar
   const tileContent = ({ date, view }) => {
@@ -127,7 +157,7 @@ const CalendarView = ({ currency, exchangeRate }) => {
       const dateKey = date.toDateString();
       if (dailyBudgets[dateKey]) {
         return (
-          <div className="budget-display">
+          <div className="budget-display" data-total={`Total: ${currencySymbols[currency]}${dailyBudgets[dateKey].total.toFixed(2)}`}>
             <strong>Total:</strong> {currencySymbols[currency]}{dailyBudgets[dateKey].total.toFixed(2)}
           </div>
         );
@@ -141,16 +171,23 @@ const CalendarView = ({ currency, exchangeRate }) => {
     const dateKey = date.toDateString();
     const endDateKey = new Date(budgetData.endDate).toDateString();
     const dayData = dailyBudgets[dateKey];
-  
+
     let className = '';
     if (dateKey === endDateKey) {
       className += ' budget-goal-day savings-goal-day-outline '; // Highlight savings goal date with outline
     }
     if (dayData) {
       const totalDifference = dayData.categories.reduce((sum, row) => sum + row.difference, 0);
-      if (totalDifference > 0) {
+      const totalUnexpectedExpenses = dayData.unexpectedExpenses || 0;
+
+      // Subtract unexpected expenses from the total difference
+      const netDifference = totalDifference - totalUnexpectedExpenses;
+
+      console.log(`Date: ${dateKey}, Total Difference: ${totalDifference}, Unexpected Expenses: ${totalUnexpectedExpenses}, Net Difference: ${netDifference}`); // Debugging line
+
+      if (netDifference > 0) {
         className += ' saved-more '; // Green for saving more than expected
-      } else if (totalDifference < 0) {
+      } else if (netDifference < 0) {
         className += ' overspent '; // Red for overspending
       }
     }
@@ -183,10 +220,10 @@ const CalendarView = ({ currency, exchangeRate }) => {
   // Export data for the selected time range
   const exportTimeRangeData = (format) => {
     if (!startDate || !endDate) {
-      alert('Please select a valid date range.');
+      toast.error('Please select a valid date range.', { position: 'bottom-right' });
       return;
     }
-  
+
     // Gather data for the selected date range
     const selectedData = [];
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
@@ -210,12 +247,12 @@ const CalendarView = ({ currency, exchangeRate }) => {
         });
       }
     }
-  
+
     if (selectedData.length === 0) {
-      alert('No data available for the selected date range.');
+      toast.error('No data available for the selected date range.', { position: 'bottom-right' });
       return;
     }
-  
+
     // Calculate totals for the selected date range
     const totals = {
       budgeted: selectedData.reduce((sum, day) => sum + day.rows.reduce((rowSum, row) => rowSum + row.expected, 0), 0),
@@ -224,23 +261,30 @@ const CalendarView = ({ currency, exchangeRate }) => {
       savings: selectedData.reduce((sum, day) => sum + day.savings, 0),
       unexpectedExpenses: selectedData.reduce((sum, day) => sum + (day.unexpectedExpenses[0]?.amount || 0), 0),
     };
-  
+
     // Prepare data for export
     const data = {
       totals,
       dailyData: selectedData,
     };
-  
+
     // Export based on the selected format
     if (format === 'csv') {
       exportToCSV(data, `Budget_${startDate.toDateString()}_to_${endDate.toDateString()}`);
+      toast.success('Data exported to CSV successfully!', { position: 'bottom-right' });
     } else if (format === 'pdf') {
       exportToPDF(data, `Budget_${startDate.toDateString()}_to_${endDate.toDateString()}`, currencySymbols[currency]);
+      toast.success('Data exported to PDF successfully!', { position: 'bottom-right' });
     }
   };
 
   return (
-    <div className="calendar-view">
+    <motion.div
+      className="calendar-view"
+      initial={{ opacity: 0, y: -20 }} // Fade in and slide down
+      animate={{ opacity: 1, y: 0 }} // Final state
+      transition={{ duration: 0.5 }} // Animation duration
+    >
       <h1>Budget Calendar</h1>
       <div className="date-range-picker">
         <label>
@@ -267,11 +311,7 @@ const CalendarView = ({ currency, exchangeRate }) => {
         </label>
         <button onClick={() => exportTimeRangeData('csv')}>Export to CSV</button>
         <button onClick={() => exportTimeRangeData('pdf')}>Export to PDF</button>
-        <button
-          onClick={() =>
-            navigate('/summary', { state: { startDate, endDate } })
-          }
-        >
+        <button onClick={() => navigate('/summary', { state: { startDate, endDate } })}>
           View Summary
         </button>
       </div>
@@ -289,7 +329,8 @@ const CalendarView = ({ currency, exchangeRate }) => {
       <button onClick={() => navigate('/budget')} className="back-button">
         Go Back to Setup
       </button>
-    </div>
+      <ToastContainer /> {/* Add toast container */}
+    </motion.div>
   );
 };
 

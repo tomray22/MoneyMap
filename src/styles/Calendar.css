@@ -1,32 +1,39 @@
+/* General Styles */
 .calendar-view {
-  font-family: Arial, sans-serif;
+  font-family: 'Nunito', sans-serif; /* Friendly font */
   padding: 20px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  max-width: 800px;
+  background-color: #fff; /* White background */
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-width: 1000px;
   margin: 20px auto;
+  transition: all 0.3s ease;
 }
 
 .calendar-view h1 {
   text-align: center;
-  color: #333;
+  color: var(--dark-grey); /* Dark grey text */
   margin-bottom: 20px;
+  font-size: 24px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif; /* Modern heading font */
 }
 
+/* Date Range Picker */
 .date-range-picker {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .date-range-picker label {
   display: flex;
   flex-direction: column;
   font-size: 14px;
-  color: #555;
+  color: var(--dark-grey); /* Dark grey text */
 }
 
 .date-range-picker .react-datepicker-wrapper {
@@ -35,126 +42,201 @@
 
 .date-range-picker button {
   padding: 8px 16px;
-  background-color: #007bff;
+  background-color: var(--pastel-blue); /* Pastel blue button */
   color: #fff;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s, transform 0.2s;
 }
 
 .date-range-picker button:hover {
-  background-color: #0056b3;
+  background-color: #6BAED6; /* Slightly darker pastel blue */
+  transform: translateY(-2px);
 }
 
+/* Calendar Styling */
 .react-calendar {
   width: 100%;
-  max-width: 800px;
+  max-width: 1000px;
   background-color: #fff;
   border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  padding: 10px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  transition: all 0.3s ease;
 }
 
 .react-calendar__navigation {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 20px;
 }
 
 .react-calendar__navigation button {
-  background-color: #007bff;
+  background-color: var(--pastel-blue); /* Pastel blue button */
   color: #fff;
   border: none;
-  padding: 8px 12px;
+  padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s, transform 0.2s;
 }
 
 .react-calendar__navigation button:hover {
-  background-color: #0056b3;
+  background-color: #6BAED6; /* Slightly darker pastel blue */
+  transform: translateY(-2px);
 }
 
 .react-calendar__month-view__weekdays {
   text-align: center;
   font-weight: bold;
-  color: #333;
+  color: var(--dark-grey); /* Dark grey text */
+  margin-bottom: 10px;
 }
 
 .react-calendar__tile {
   padding: 10px;
-  height: 80px;
+  height: 100px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: flex-start;
-  font-size: 12px;
-  color: #333; /* Ensure text is visible */
+  font-size: 14px;
+  color: var(--dark-grey); /* Dark grey text */
+  transition: all 0.3s ease;
+  border-radius: 8px;
+}
+
+.react-calendar__tile:hover {
+  background-color: transparent; /* Remove gray background */
+  transform: scale(1.05);
+  box-shadow: 0 0 8px rgba(0, 123, 255, 0.3); /* Subtle blue shadow */
 }
 
 .react-calendar__tile--active {
-  background-color: #007bff;
+  background-color: var(--pastel-blue); /* Pastel blue for active date */
   color: #fff;
 }
 
 .react-calendar__tile--now {
-  background-color: #e6f7ff;
+  background-color: #e6f7ff; /* Light blue for current date */
 }
 
 .budget-display {
   font-size: 12px;
-  color: #333;
+  color: var(--dark-grey); /* Dark grey text */
   margin-top: 5px;
-}
-
-.back-button {
-  display: block;
-  margin: 20px auto;
-  padding: 10px 20px;
-  background-color: #dc3545;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.back-button:hover {
-  background-color: #c82333;
+  font-weight: 500; /* Slightly bolder */
 }
 
 /* Highlight Savings Goal Date */
 .budget-goal-day {
   background-color: #e6f7ff; /* Light blue background */
-  border: 2px solid #007bff; /* Blue border */
+  border: 2px solid var(--pastel-blue); /* Pastel blue border */
+  color: var(--dark-grey); /* Dark grey text */
+  position: relative;
 }
 
-/* Green highlight for saving more than expected */
+.budget-goal-day::after {
+  content: '🎯'; /* Add a target emoji */
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 16px;
+}
+
 .saved-more {
-  background-color: #e6ffe6; /* Light green background */
-  border: 2px solid #28a745; /* Green border */
+  background-color: #e6ffe6; /* Light green for savings */
+  border: 2px solid var(--pastel-green); /* Pastel green border */
 }
 
-/* Red highlight for overspending */
 .overspent {
-  background-color: #ffe6e6; /* Light red background */
-  border: 2px solid #dc3545; /* Red border */
+  background-color: #ffe6e6; /* Light red for overspending */
+  border: 2px solid var(--soft-red); /* Soft red border */
 }
 
-/* Ensure text is visible on highlighted days */
-.react-calendar__tile.saved-more,
-.react-calendar__tile.overspent,
-.react-calendar__tile.budget-goal-day {
-  color: #333; /* Dark text for better readability */
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .react-calendar {
+    padding: 10px; /* Reduce padding for mobile */
+  }
+
+  .react-calendar__month-view__days {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4 days per row */
+    gap: 5px; /* Add gap between tiles */
+  }
+
+  .react-calendar__tile {
+    height: 60px; /* Smaller height for mobile */
+    padding: 5px;
+    font-size: 12px; /* Smaller font size for mobile */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+
+  .budget-display {
+    font-size: 10px;
+    margin-top: 2px;
+    font-weight: 500; /* Keep it bold on mobile */
+    white-space: nowrap; /* Prevent text wrapping */
+  }
+
+  .react-calendar__tile:hover .budget-display {
+    display: none; /* Hide totals on hover for mobile */
+  }
+
+  /* Add a tooltip for mobile */
+  .react-calendar__tile:hover::after {
+    content: attr(data-total);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 5px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 100;
+  }
 }
 
-.savings-goal-day-outline {
-  border: 3px dashed gold; /* Thicker gold dashed outline */
-  border-radius: 6px; /* More rounded corners */
-  box-shadow: 0 0 10px gold; /* Glow effect */
-  position: relative; /* Ensure the outline appears on top of the tile content */
-  z-index: 10; /* Higher z-index to ensure it's on top */
+/* Custom Toastify Styles */
+.Toastify__toast {
+  font-family: 'Nunito', sans-serif; /* Friendly font */
+  font-size: 14px;
+  color: var(--dark-grey); /* Dark grey text */
+  background-color: #fff; /* White background */
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.Toastify__toast--success {
+  background-color: #e6ffe6; /* Light green for success */
+  border-left: 4px solid var(--pastel-green); /* Pastel green border */
+}
+
+.Toastify__toast--error {
+  background-color: #ffe6e6; /* Light red for error */
+  border-left: 4px solid var(--soft-red); /* Soft red border */
+}
+
+.Toastify__toast--info {
+  background-color: #e6f7ff; /* Light blue for info */
+  border-left: 4px solid var(--pastel-blue); /* Pastel blue border */
+}
+
+.Toastify__toast-body {
+  color: var(--dark-grey); /* Dark grey text */
+}
+
+.Toastify__close-button {
+  color: var(--dark-grey); /* Dark grey close button */
 }

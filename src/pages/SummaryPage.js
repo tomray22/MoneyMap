@@ -5,6 +5,8 @@ import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { exportToCSV, exportToPDF } from '../components/exportUtils';
 import CurrencyConverter from '../components/CurrencyConverter';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import '../styles/SummaryPage.css';
 
 // Register Chart.js components
@@ -175,7 +177,7 @@ const SummaryView = () => {
     return dailyData;
   };
 
-  // Export to CSV
+  // Export to CSV with Toastify alert
   const handleExportCSV = () => {
     const dailyData = gatherDailyData();
     const data = {
@@ -202,11 +204,12 @@ const SummaryView = () => {
         savings: day.savings || 0,
       })),
     };
-  
+
     exportToCSV(data, `Summary_${startDate.toDateString()}_to_${endDate.toDateString()}`);
+    toast.success('CSV exported successfully!');
   };
 
-  // Export to PDF
+  // Export to PDF with Toastify alert
   const handleExportPDF = () => {
     const dailyData = gatherDailyData();
     const data = {
@@ -233,36 +236,38 @@ const SummaryView = () => {
         savings: day.savings || 0,
       })),
     };
-  
+
     exportToPDF(data, `Summary_${startDate.toDateString()}_to_${endDate.toDateString()}`, currencySymbols[currency]);
+    toast.success('PDF exported successfully!');
   };
 
+  // Export to JSON with Toastify alert
   const handleExportJSON = () => {
     const dailyData = gatherDailyData();
-  
+
     // Get all unique labels from the budgetData and dailyData
     const allLabels = new Set();
-  
+
     // Add labels from budgetData categories
     if (budgetData?.categories) {
       budgetData.categories.forEach((category) => {
         allLabels.add(category.label);
       });
     }
-  
+
     // Add labels from dailyData rows
     dailyData.forEach((day) => {
       day.rows.forEach((row) => {
         allLabels.add(row.label);
       });
     });
-  
+
     // Ensure all days in the selected time period are included
     const allDaysData = [];
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       const dateKey = d.toDateString();
       const existingDay = dailyData.find((day) => day.date === dateKey);
-  
+
       // Create a default row for each label
       const defaultRows = Array.from(allLabels).map((label) => ({
         label,
@@ -270,7 +275,7 @@ const SummaryView = () => {
         actual: 0,
         difference: 0,
       }));
-  
+
       // If data exists for this day, merge it with the default rows
       const rows = existingDay
         ? existingDay.rows.map((row) => ({
@@ -280,7 +285,7 @@ const SummaryView = () => {
             difference: row.difference || 0,
           }))
         : defaultRows;
-  
+
       allDaysData.push({
         date: dateKey,
         rows,
@@ -289,7 +294,7 @@ const SummaryView = () => {
         savings: existingDay?.savings || 0,
       });
     }
-  
+
     // Prepare the data for export
     const data = {
       totals: {
@@ -314,7 +319,7 @@ const SummaryView = () => {
         unexpectedExpenses: day.unexpectedExpenses || [],
       })),
     };
-  
+
     // Convert data to JSON and create a downloadable file
     const jsonString = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -324,47 +329,48 @@ const SummaryView = () => {
     link.download = `Budget_Summary_${startDate.toDateString()}_to_${endDate.toDateString()}.json`;
     link.click();
     URL.revokeObjectURL(url);
+    toast.success('JSON exported successfully!');
   };
 
   // Data for the budgeted donut chart
-const budgetedChartData = {
-  labels: [
-    ...budgetData?.categories
-      .filter((category) => category.label !== 'Savings') // Exclude Savings from the main list
-      .map((category) => category.label),
-    'Savings', // Add Savings as a separate slice
-  ],
-  datasets: [
-    {
-      label: 'Budgeted',
-      data: [
-        ...budgetData?.categories
-          .filter((category) => category.label !== 'Savings') // Exclude Savings from the main list
-          .map((category) => category.expected * exchangeRate),
-        budgetData.remainingBudget * exchangeRate, // Use Budgeted Savings directly
-      ],
-      backgroundColor: [
-        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#FF6384',
-      ],
-    },
-  ],
-};
+  const budgetedChartData = {
+    labels: [
+      ...budgetData?.categories
+        .filter((category) => category.label !== 'Savings') // Exclude Savings from the main list
+        .map((category) => category.label),
+      'Savings', // Add Savings as a separate slice
+    ],
+    datasets: [
+      {
+        label: 'Budgeted',
+        data: [
+          ...budgetData?.categories
+            .filter((category) => category.label !== 'Savings') // Exclude Savings from the main list
+            .map((category) => category.expected * exchangeRate),
+          budgetData.remainingBudget * exchangeRate, // Use Budgeted Savings directly
+        ],
+        backgroundColor: [
+          '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#FF6384',
+        ],
+      },
+    ],
+  };
 
-// Data for the actual spending donut chart
-const actualSpendingChartData = {
-  labels: ['Spent', 'Savings', 'Unexpected Expenses'],
-  datasets: [
-    {
-      label: 'Actual Spending',
-      data: [
-        totals.actual * exchangeRate,
-        totals.savings * exchangeRate,
-        totals.unexpectedExpenses * exchangeRate,
-      ],
-      backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
-    },
-  ],
-};
+  // Data for the actual spending donut chart
+  const actualSpendingChartData = {
+    labels: ['Spent', 'Savings', 'Unexpected Expenses'],
+    datasets: [
+      {
+        label: 'Actual Spending',
+        data: [
+          totals.actual * exchangeRate,
+          totals.savings * exchangeRate,
+          totals.unexpectedExpenses * exchangeRate,
+        ],
+        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+      },
+    ],
+  };
 
   return (
     <div className="summary-page">
@@ -378,31 +384,31 @@ const actualSpendingChartData = {
       <div className="totals-display">
         <h2>Accumulated Totals</h2>
         <div className="totals-grid">
-          <div className="totals-item">
+          <div className="totals-item" data-tooltip="Total amount budgeted for the selected date range">
             <span className="totals-label">Total Budgeted</span>
             <span className="totals-value">
               {currencySymbols[currency]}{(totals.budgeted * exchangeRate).toFixed(2)}
             </span>
           </div>
-          <div className="totals-item">
+          <div className="totals-item" data-tooltip="Total amount actually spent for the selected date range">
             <span className="totals-label">Total Actual</span>
             <span className="totals-value">
               {currencySymbols[currency]}{(totals.actual * exchangeRate).toFixed(2)}
             </span>
           </div>
-          <div className="totals-item">
+          <div className="totals-item" data-tooltip="Difference between budgeted and actual amounts">
             <span className="totals-label">Total Difference</span>
             <span className="totals-value">
               {currencySymbols[currency]}{(totals.difference * exchangeRate).toFixed(2)}
             </span>
           </div>
-          <div className="totals-item">
+          <div className="totals-item" data-tooltip="Total savings accumulated for the selected date range">
             <span className="totals-label">Total Savings</span>
             <span className="totals-value">
               {currencySymbols[currency]}{(totals.savings * exchangeRate).toFixed(2)}
             </span>
           </div>
-          <div className="totals-item">
+          <div className="totals-item" data-tooltip="Total unexpected expenses incurred for the selected date range">
             <span className="totals-label">Unexpected Expenses</span>
             <span className="totals-value">
               {currencySymbols[currency]}{(totals.unexpectedExpenses * exchangeRate).toFixed(2)}
@@ -433,12 +439,13 @@ const actualSpendingChartData = {
           {currencySymbols[currency]}{(totals.savings * exchangeRate).toFixed(2)} / {currencySymbols[currency]}{(savingsGoal * exchangeRate).toFixed(2)}
         </p>
       </div>
-        <div className="export-buttons">
-          <button onClick={handleExportCSV}>Export to CSV</button>
-          <button onClick={handleExportPDF}>Export to PDF</button>
-          <button onClick={handleExportJSON}>Export to JSON</button>
-          <button onClick={() => navigate('/calendar')}>Back to Calendar</button>
-        </div>
+      <div className="export-buttons">
+        <button onClick={handleExportCSV}>Export to CSV</button>
+        <button onClick={handleExportPDF}>Export to PDF</button>
+        <button onClick={handleExportJSON}>Export to JSON</button>
+        <button onClick={() => navigate('/calendar')}>Back to Calendar</button>
+      </div>
+      <ToastContainer position="bottom-right" autoClose={3000} />
     </div>
   );
 };
