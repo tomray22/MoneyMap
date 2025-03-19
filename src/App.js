@@ -38,21 +38,21 @@ const App = () => {
             <div className="loading-spinner"></div>
           </div>
         )}
-  
+
         {/* Success Message */}
         {showSuccessMessage && (
           <div className="success-message">
             Currency updated to {currency} successfully!
           </div>
         )}
-  
+
         {/* Main Content Wrapper */}
         <div className="main-content">
           {/* Header */}
           <header className="header">
             <h1>MoneyMap</h1>
           </header>
-  
+
           {/* Routes */}
           <Routes>
             <Route
@@ -69,7 +69,7 @@ const App = () => {
                       <button className="start-button">Get Started</button>
                     </Link>
                   </div>
-  
+
                   {/* Features Section */}
                   <div className="features">
                     <h2>Why Choose MoneyMap?</h2>
@@ -137,7 +137,7 @@ const App = () => {
             />
           </Routes>
         </div>
-  
+
         {/* Footer */}
         <footer className="footer">
           <p>&copy; 2025 MoneyMap. All rights reserved.</p>
