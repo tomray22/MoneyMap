@@ -4,9 +4,9 @@ const BudgetContext = createContext();
 
 export const BudgetProvider = ({ children }) => {
   const [budgetData, setBudgetData] = useState({
-    incomeType: 'one-time', // 'one-time' or 'gross-income'
-    grossIncome: null, // Only used if incomeType is 'gross-income'
-    incomeInterval: 'monthly', // Only used if incomeType is 'gross-income'
+    incomeType: 'one-time', // 'one-time' or 'net-income'
+    netIncome: null, // Only used if incomeType is 'net-income'
+    incomeInterval: 'monthly', // Only used if incomeType is 'net-income'
     totalBudget: null, // Only used if incomeType is 'one-time'
     categories: [],
     startDate: new Date(),

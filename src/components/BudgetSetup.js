@@ -53,7 +53,7 @@ const useBudgetSetup = (currency, exchangeRate) => {
   const [remainingBudget, setRemainingBudget] = useState(0);
   const [incomeType, setIncomeType] = useState('one-time');
   const [incomeData, setIncomeData] = useState({
-    grossIncome: '',
+    netIncome: '',
     incomeInterval: 'monthly',
   });
   const [savingsGoalEnabled, setSavingsGoalEnabled] = useState(false);
@@ -118,9 +118,9 @@ const useBudgetSetup = (currency, exchangeRate) => {
     }
   };
 
-  // Handle gross income change
-  const handleGrossIncomeChange = (value) => {
-    setIncomeData({ ...incomeData, grossIncome: value });
+  // Handle net income change
+  const handlenetIncomeChange = (value) => {
+    setIncomeData({ ...incomeData, netIncome: value });
     if (incomeData.incomeInterval && value) {
       const income = parseFloat(value);
       let calculatedBudget = 0;
@@ -147,7 +147,21 @@ const useBudgetSetup = (currency, exchangeRate) => {
   // Add a function to check if there is data in local storage
   const hasSavedData = () => {
     const budgetData = localStorage.getItem('budgetData');
-    return budgetData !== null && budgetData !== undefined;
+    if (!budgetData) return false; // No data in localStorage
+  
+    try {
+      const parsedData = JSON.parse(budgetData);
+      // Check if the data is valid (e.g., categories exist and totalBudget is set)
+      return (
+        parsedData.categories &&
+        parsedData.categories.length > 0 &&
+        parsedData.totalBudget !== null &&
+        parsedData.totalBudget !== undefined
+      );
+    } catch (error) {
+      console.error('Error parsing budgetData from localStorage:', error);
+      return false; // Invalid JSON or corrupted data
+    }
   };
 
   // Handle template selection
@@ -363,8 +377,8 @@ const useBudgetSetup = (currency, exchangeRate) => {
       startDate,
       endDate: calculatedEndDate,
       incomeType,
-      grossIncome: incomeType === 'gross-income' ? parseFloat(incomeData.grossIncome) : null,
-      incomeInterval: incomeType === 'gross-income' ? incomeData.incomeInterval : null,
+      netIncome: incomeType === 'net-income' ? parseFloat(incomeData.netIncome) : null,
+      incomeInterval: incomeType === 'net-income' ? incomeData.incomeInterval : null,
       budgetGoals: {
         savingsGoal: savingsGoalEnabled ? parseFloat(savingsGoalAmount) : 0,
         savingsInterval: 'monthly',
@@ -412,7 +426,7 @@ const useBudgetSetup = (currency, exchangeRate) => {
     isDrawerOpen,
     hasSavedData,
     handleIncomeTypeChange,
-    handleGrossIncomeChange,
+    handlenetIncomeChange,
     handleTemplateClick,
     handleAddCategory,
     handleRemoveCategory,

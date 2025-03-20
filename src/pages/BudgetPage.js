@@ -35,7 +35,7 @@ const BudgetPage = ({ currency, exchangeRate }) => {
     savingsGoalAmount,
     setSavingsGoalAmount,
     handleIncomeTypeChange,
-    handleGrossIncomeChange,
+    handlenetIncomeChange,
     handleTemplateClick,
     handleAddCategory,
     handleRemoveCategory,
@@ -81,10 +81,10 @@ const BudgetPage = ({ currency, exchangeRate }) => {
 
   // Information hints for each step
   const stepHints = {
-    1: "Choose the type of budget you want to create. Select 'One-Time Budget' if you have a fixed amount, 'Expected Gross Income' if you have regular income, or 'Continue Working' to resume an existing budget.",
+    1: "Choose the type of budget you want to create. Select 'One-Time Budget' if you have a fixed amount, 'Expected Net Income' if you have regular income, or 'Continue Working' to resume an existing budget.",
     2: incomeType === 'one-time'
       ? "Enter the total amount of money you have to budget. This could be savings, a bonus, or any one-time amount."
-      : "Enter your gross income and how often you get paid. This helps calculate your monthly budget.",
+      : "Enter your net income and how often you get paid. This helps calculate your monthly budget.",
     3: "Set a savings goal if you want to save a specific amount. The app will help you track your progress.",
     4: "Choose a template to get started quickly or create your own custom budget.",
     5: "Set the time period for your budget. Choose how long your budget will last (e.g., 1 week, 1 month).",
@@ -94,16 +94,6 @@ const BudgetPage = ({ currency, exchangeRate }) => {
   return (
     <div className="budget-setup">
       <h2>Budget Setup</h2>
-
-      {/* Step Navigation */}
-      <div className="step-navigation">
-        <button onClick={prevStep} disabled={currentStep === 1}>
-          <FaArrowLeft /> Back
-        </button>
-        <button onClick={nextStep} disabled={currentStep === 6}>
-          Next <FaArrowRight />
-        </button>
-      </div>
 
       {/* Information Hint */}
       <div className="info-hint">
@@ -137,19 +127,19 @@ const BudgetPage = ({ currency, exchangeRate }) => {
               </p>
             </div>
 
-            {/* Gross Income Option */}
+            {/* net Income Option */}
             <div
-              className={`income-option ${incomeType === 'gross-income' ? 'selected' : ''}`}
-              onClick={() => handleIncomeTypeChange('gross-income')}
+              className={`income-option ${incomeType === 'net-income' ? 'selected' : ''}`}
+              onClick={() => handleIncomeTypeChange('net-income')}
             >
               <label>
                 <input
                   type="radio"
-                  value="gross-income"
-                  checked={incomeType === 'gross-income'}
-                  onChange={() => handleIncomeTypeChange('gross-income')}
+                  value="net-income"
+                  checked={incomeType === 'net-income'}
+                  onChange={() => handleIncomeTypeChange('net-income')}
                 />
-                Expected Gross Income
+                Expected Net Income
               </label>
               <p className="option-description">
                 Use this if you get paid regularly (like a salary).
@@ -183,7 +173,7 @@ const BudgetPage = ({ currency, exchangeRate }) => {
       {/* Step 2: Budget Amount */}
       {currentStep === 2 && (
         <div className="step">
-          <h3>{incomeType === 'one-time' ? 'Enter your total budget.' : 'Enter your gross income details.'}</h3>
+          <h3>{incomeType === 'one-time' ? 'Enter your total budget.' : 'Enter your net income details.'}</h3>
           <p className="hint">
             <strong>Hint:</strong> If you're an hourly worker, enter the <strong>minimum amount</strong> you expect to earn. You can track extra earnings later using <strong>Supplemental Income</strong>.
           </p>
@@ -205,15 +195,15 @@ const BudgetPage = ({ currency, exchangeRate }) => {
               </label>
             </div>
           ) : (
-            <div className="gross-income-form">
-              <div className="gross-income-input">
+            <div className="net-income-form">
+              <div className="net-income-input">
                 <label>
-                  Gross Income:
+                  Net Income:
                   <input
                     type="number"
-                    value={incomeData.grossIncome}
-                    onChange={(e) => handleGrossIncomeChange(e.target.value)}
-                    placeholder="Enter gross income"
+                    value={incomeData.netIncome}
+                    onChange={(e) => handlenetIncomeChange(e.target.value)}
+                    placeholder="Enter net income"
                     min="0"
                   />
                   <span>{currencySymbols[currency]}</span>
@@ -528,6 +518,17 @@ const BudgetPage = ({ currency, exchangeRate }) => {
           </button>
         </div>
       )}
+
+      
+      {/* Step Navigation */}
+      <div className="step-navigation">
+        <button onClick={prevStep} disabled={currentStep === 1}>
+          <FaArrowLeft /> Back
+        </button>
+        <button onClick={nextStep} disabled={currentStep === 6}>
+          Next <FaArrowRight />
+        </button>
+      </div>
 
       <ToastContainer />
     </div>
