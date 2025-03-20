@@ -27,7 +27,7 @@ const templates = [
   },
   {
     name: 'Daily Expenses',
-    categories: ['Groceries', 'Transport', 'Utilities', 'Leisure', 'Savings'],
+    categories: ['Groceries', 'Transport', 'Utilities', 'Leisure'],
   },
   {
     name: 'Custom',
@@ -60,12 +60,8 @@ const useBudgetSetup = (currency, exchangeRate) => {
   const [savingsGoalAmount, setSavingsGoalAmount] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Clear dailyData from localStorage when returning to setup
-  useEffect(() => {
-    if (!isSetupComplete) {
-      localStorage.removeItem('dailyData');
-    }
-  }, [isSetupComplete]);
+  // Track whether the savings goal warning has been shown
+  const [hasShownSavingsWarning, setHasShownSavingsWarning] = useState(false);
 
   // Load categories and ratios when a template is selected
   useEffect(() => {
@@ -117,7 +113,7 @@ const useBudgetSetup = (currency, exchangeRate) => {
   // Handle income type change
   const handleIncomeTypeChange = (type) => {
     setIncomeType(type);
-    if (type !== 'import') {
+    if (type !== 'continue') {
       setTotalBudget('');
     }
   };
@@ -148,52 +144,10 @@ const useBudgetSetup = (currency, exchangeRate) => {
     }
   };
 
-  // Handle importing from a JSON
-  const handleImportJSON = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const importedData = JSON.parse(e.target.result);
-        if (!importedData.totals || !importedData.dailyData) {
-          throw new Error('Invalid file format: Missing required fields.');
-        }
-
-        const startDate = new Date(importedData.dailyData[0].date);
-        const endDate = new Date(importedData.dailyData[importedData.dailyData.length - 1].date);
-
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-          throw new Error('Invalid date format in the imported file.');
-        }
-
-        const updatedBudgetData = {
-          ...budgetData,
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
-        };
-
-        setBudgetData(updatedBudgetData);
-
-        const updatedDailyData = {};
-        importedData.dailyData.forEach((day) => {
-          updatedDailyData[day.date] = {
-            rows: day.rows,
-            supplementalIncomes: day.supplementalIncomes || [],
-            unexpectedExpenses: day.unexpectedExpenses || [],
-            savings: day.savings || 0,
-          };
-        });
-        localStorage.setItem('dailyData', JSON.stringify(updatedDailyData));
-
-        toast.success('Budget data imported successfully!');
-        navigate('/calendar');
-      } catch (error) {
-        toast.error(`Error importing JSON file: ${error.message}`);
-      }
-    };
-    reader.readAsText(file);
+  // Add a function to check if there is data in local storage
+  const hasSavedData = () => {
+    const budgetData = localStorage.getItem('budgetData');
+    return budgetData !== null && budgetData !== undefined;
   };
 
   // Handle template selection
@@ -203,29 +157,50 @@ const useBudgetSetup = (currency, exchangeRate) => {
 
   // Add a new category
   const handleAddCategory = () => {
-    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
-      const updatedCategories = [...categories, newCategory.trim()];
-      setCategories(updatedCategories);
-      setRatios({ ...ratios, [newCategory.trim()]: '' });
-      setDollarAmounts({ ...dollarAmounts, [newCategory.trim()]: null });
-      setCategorySettings({
-        ...categorySettings,
-        [newCategory.trim()]: {
-          useDollarAmounts: false,
-          scheduleType: 'none',
-          isOneTime: false,
-          oneTimeDate: new Date(),
-          frequency: 'weekly',
-          interval: 1,
-          selectedDay: 'Monday',
-          selectedDays: [],
-        },
-      });
-      setNewCategory('');
-      toast.success(`Category "${newCategory.trim()}" added successfully!`);
-    } else {
-      toast.error('Category name is invalid or already exists.');
+    const categoryName = newCategory.trim();
+
+    // Check if the category name is empty or already exists
+    if (!categoryName) {
+      toast.error('Category name cannot be empty.');
+      return;
     }
+
+    if (categories.includes(categoryName)) {
+      toast.error('Category name already exists.');
+      return;
+    }
+
+    // Check if the category name is "Savings" or a derivative
+    const savingsKeywords = ['savings', 'saving', 'save']; // Add more derivatives if needed
+    const isSavingsRelated = savingsKeywords.some((keyword) =>
+      categoryName.toLowerCase().includes(keyword)
+    );
+
+    if (isSavingsRelated) {
+      toast.error('Cannot use "Savings" or related terms as a category name.');
+      return;
+    }
+
+    // Add the new category
+    const updatedCategories = [...categories, categoryName];
+    setCategories(updatedCategories);
+    setRatios({ ...ratios, [categoryName]: '' });
+    setDollarAmounts({ ...dollarAmounts, [categoryName]: null });
+    setCategorySettings({
+      ...categorySettings,
+      [categoryName]: {
+        useDollarAmounts: false,
+        scheduleType: 'none',
+        isOneTime: false,
+        oneTimeDate: new Date(),
+        frequency: 'weekly',
+        interval: 1,
+        selectedDay: 'Monday',
+        selectedDays: [],
+      },
+    });
+    setNewCategory('');
+    toast.success(`Category "${categoryName}" added successfully!`);
   };
 
   // Remove a category (except Savings)
@@ -307,27 +282,44 @@ const useBudgetSetup = (currency, exchangeRate) => {
     });
   };
 
-  // Check savings goal feasibility
-  const checkSavingsGoalFeasibility = () => {
-    if (savingsGoalEnabled && savingsGoalAmount) {
-      const goal = parseFloat(savingsGoalAmount);
-      const remaining = remainingBudget;
-
-      if (goal > remaining) {
-        toast.warn(`Your savings goal (${currencySymbols[currency]}${goal.toFixed(2)}) exceeds your remaining budget (${currencySymbols[currency]}${remaining.toFixed(2)}).`);
-      }
-    }
-  };
-
   // Complete the budget setup
   const handleCompleteSetup = () => {
+    // Validate required fields
     if (!totalBudget || isNaN(totalBudget)) {
       toast.error('Please enter a valid total budget.');
       return;
     }
 
-    checkSavingsGoalFeasibility();
+    // Check if all categories (except Savings) have valid amounts
+    const hasInvalidAmounts = categories.some((category) => {
+      if (category === 'Savings') return false; // Skip Savings
+      if (categorySettings[category].useDollarAmounts) {
+        return dollarAmounts[category] === null || dollarAmounts[category] === undefined;
+      } else {
+        return ratios[category] === null || ratios[category] === undefined;
+      }
+    });
 
+    if (hasInvalidAmounts) {
+      toast.error('Please assign amounts to all categories.');
+      return;
+    }
+
+    // Check if Savings Goal > Savings
+    if (savingsGoalEnabled && savingsGoalAmount > remainingBudget && !hasShownSavingsWarning) {
+      toast.warn(
+        `Your savings goal (${currencySymbols[currency]}${savingsGoalAmount}) exceeds your remaining budget (${currencySymbols[currency]}${remainingBudget.toFixed(2)}). You may need to adjust your spending or increase your income. Press "Complete Setup" again to proceed if you understand.`
+      );
+      setHasShownSavingsWarning(true); // Mark that the warning has been shown
+      return; // Stop the setup process the first time
+    }
+
+    // Clear dailyData only if the user is NOT continuing an existing budget
+    if (incomeType !== 'continue') {
+      localStorage.removeItem('dailyData');
+    }
+
+    // Proceed with setup
     let calculatedEndDate;
     if (timePeriod === 'weekly') {
       calculatedEndDate = new Date(startDate);
@@ -381,6 +373,7 @@ const useBudgetSetup = (currency, exchangeRate) => {
     };
 
     setBudgetData(newBudgetData);
+    localStorage.setItem('budgetData', JSON.stringify(newBudgetData));
     setIsSetupComplete(true);
     toast.success('Budget setup completed successfully!');
     navigate('/calendar');
@@ -397,29 +390,29 @@ const useBudgetSetup = (currency, exchangeRate) => {
     ratios,
     dollarAmounts,
     totalBudget,
-    setTotalBudget, // Add this
+    setTotalBudget,
     timePeriod,
     customTimePeriod,
     startDate,
-    setStartDate, // Add this
+    setStartDate,
     endDate,
-    setEndDate, // Add this
+    setEndDate,
     isSetupComplete,
     newCategory,
-    setNewCategory, // Add this
+    setNewCategory,
     categorySettings,
     remainingBudget,
     incomeType,
     incomeData,
-    setIncomeData, // Add this
+    setIncomeData,
     savingsGoalEnabled,
-    setSavingsGoalEnabled, // Add this
+    setSavingsGoalEnabled,
     savingsGoalAmount,
-    setSavingsGoalAmount, // Add this
+    setSavingsGoalAmount,
     isDrawerOpen,
+    hasSavedData,
     handleIncomeTypeChange,
     handleGrossIncomeChange,
-    handleImportJSON,
     handleTemplateClick,
     handleAddCategory,
     handleRemoveCategory,
@@ -431,7 +424,7 @@ const useBudgetSetup = (currency, exchangeRate) => {
     handleCompleteSetup,
     toggleDrawer,
     currencySymbols,
-    templates, // Add this
+    templates,
   };
 };
 

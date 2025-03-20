@@ -241,97 +241,6 @@ const SummaryView = () => {
     toast.success('PDF exported successfully!');
   };
 
-  // Export to JSON with Toastify alert
-  const handleExportJSON = () => {
-    const dailyData = gatherDailyData();
-
-    // Get all unique labels from the budgetData and dailyData
-    const allLabels = new Set();
-
-    // Add labels from budgetData categories
-    if (budgetData?.categories) {
-      budgetData.categories.forEach((category) => {
-        allLabels.add(category.label);
-      });
-    }
-
-    // Add labels from dailyData rows
-    dailyData.forEach((day) => {
-      day.rows.forEach((row) => {
-        allLabels.add(row.label);
-      });
-    });
-
-    // Ensure all days in the selected time period are included
-    const allDaysData = [];
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dateKey = d.toDateString();
-      const existingDay = dailyData.find((day) => day.date === dateKey);
-
-      // Create a default row for each label
-      const defaultRows = Array.from(allLabels).map((label) => ({
-        label,
-        expected: 0,
-        actual: 0,
-        difference: 0,
-      }));
-
-      // If data exists for this day, merge it with the default rows
-      const rows = existingDay
-        ? existingDay.rows.map((row) => ({
-            label: row.label,
-            expected: row.expected || 0,
-            actual: row.actual || 0,
-            difference: row.difference || 0,
-          }))
-        : defaultRows;
-
-      allDaysData.push({
-        date: dateKey,
-        rows,
-        supplementalIncomes: existingDay?.supplementalIncomes || [],
-        unexpectedExpenses: existingDay?.unexpectedExpenses || [],
-        savings: existingDay?.savings || 0,
-      });
-    }
-
-    // Prepare the data for export
-    const data = {
-      totals: {
-        budgeted: totals.budgeted * exchangeRate,
-        actual: totals.actual * exchangeRate,
-        difference: totals.difference * exchangeRate,
-        savings: totals.savings * exchangeRate,
-        unexpectedExpenses: totals.unexpectedExpenses * exchangeRate,
-      },
-      dailyData: allDaysData.map((day) => ({
-        date: day.date,
-        rows: [
-          ...day.rows,
-          {
-            label: 'Savings',
-            expected: day.savings || 0,
-            actual: day.savings || 0,
-            difference: 0,
-          },
-        ],
-        supplementalIncomes: day.supplementalIncomes || [],
-        unexpectedExpenses: day.unexpectedExpenses || [],
-      })),
-    };
-
-    // Convert data to JSON and create a downloadable file
-    const jsonString = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Budget_Summary_${startDate.toDateString()}_to_${endDate.toDateString()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success('JSON exported successfully!');
-  };
-
   // Data for the budgeted donut chart
   const budgetedChartData = {
     labels: [
@@ -442,7 +351,6 @@ const SummaryView = () => {
       <div className="export-buttons">
         <button onClick={handleExportCSV}>Export to CSV</button>
         <button onClick={handleExportPDF}>Export to PDF</button>
-        <button onClick={handleExportJSON}>Export to JSON</button>
         <button onClick={() => navigate('/calendar')}>Back to Calendar</button>
       </div>
       <ToastContainer position="bottom-right" autoClose={3000} />
