@@ -1,20 +1,20 @@
 {
   "files": {
-    "main.css": "/MoneyMap/static/css/main.09a96e0b.css",
-    "main.js": "/MoneyMap/static/js/main.e6e9c8a1.js",
+    "main.css": "/MoneyMap/static/css/main.08e881d8.css",
+    "main.js": "/MoneyMap/static/js/main.225b6302.js",
     "static/js/983.9d563967.chunk.js": "/MoneyMap/static/js/983.9d563967.chunk.js",
     "static/js/583.98a6e1b3.chunk.js": "/MoneyMap/static/js/583.98a6e1b3.chunk.js",
     "static/js/319.c5d7d4c7.chunk.js": "/MoneyMap/static/js/319.c5d7d4c7.chunk.js",
     "static/js/845.8d935f01.chunk.js": "/MoneyMap/static/js/845.8d935f01.chunk.js",
     "index.html": "/MoneyMap/index.html",
-    "main.09a96e0b.css.map": "/MoneyMap/static/css/main.09a96e0b.css.map",
-    "main.e6e9c8a1.js.map": "/MoneyMap/static/js/main.e6e9c8a1.js.map",
+    "main.08e881d8.css.map": "/MoneyMap/static/css/main.08e881d8.css.map",
+    "main.225b6302.js.map": "/MoneyMap/static/js/main.225b6302.js.map",
     "983.9d563967.chunk.js.map": "/MoneyMap/static/js/983.9d563967.chunk.js.map",
     "319.c5d7d4c7.chunk.js.map": "/MoneyMap/static/js/319.c5d7d4c7.chunk.js.map",
     "845.8d935f01.chunk.js.map": "/MoneyMap/static/js/845.8d935f01.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.09a96e0b.css",
-    "static/js/main.e6e9c8a1.js"
+    "static/css/main.08e881d8.css",
+    "static/js/main.225b6302.js"
   ]
 }
